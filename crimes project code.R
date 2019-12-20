@@ -18,4 +18,42 @@ str(ucr)
 
 # first analysis ----------------------------------------------------------
 
+library(mapdata)
+library(maps)
+library(ggmap)
 
+install.packages("spData")
+library(spData)
+
+install.packages("sf")
+library(sf)
+
+urban_agglomerations <- urban_agglomerations
+
+install.packages("tmap")
+library(tmap)
+
+states <- map_data("state")
+
+urb_anim = tm_shape(world) + tm_polygons() + 
+  tm_shape(urban_agglomerations) + tm_dots(size = "population_millions") +
+  tm_facets(along = "year", free.coords = FALSE)
+tmap_animation(urb_anim, filename = "anim_map.gif", delay = 25)
+
+library(ggplot2)
+
+p <- ggplot(ucr, aes(x = violent_crime_total, 
+                     y = state_population, 
+                     colour = jurisdiction)) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "Violent crimes total", y = "State population")
+p
+
+# install.packages("gganimate")
+library("gganimate")
+
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}")
