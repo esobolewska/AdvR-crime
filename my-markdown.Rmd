@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r pre-code}
+
+setwd("~/crimes new")
+
+library(readr)
+crime <- read_csv("data/crime_and_incarceration_by_state.csv")
+prison <- read_csv("data/prison_custody_by_state.csv")
+ucr <- read_csv("data/ucr_by_state.csv")
+
+library(magick)
+library(ggplot2)
+
+ucr <- ucr[!is.na(ucr$jurisdiction),]
+ucr$year <- as.integer(ucr$year)
+
+p <- ggplot(ucr, aes(x = violent_crime_total, 
+                     y = state_population, 
+                     colour = as.factor(jurisdiction))) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "Violent crimes total", y = "State population")
+
+# install.packages("gganimate")
+library("gganimate")
+
+```
+
+
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}", range=c(2001L,2017L))
+
+
+```{r}
+library(tmap)
+library(spData)
+library(sf)
+
+us_states2163 = st_transform(us_states, 2163)
+us_states_range = st_bbox(us_states2163)[4] - st_bbox(us_states2163)[2]
+
+us_states_map = tm_shape(us_states2163) +
+  tm_polygons() + 
+  tm_layout(frame = FALSE)
+
+```
+
+```{r}
+us_states_map
+```
+
+```{r}
+tm_shape(us_states2163) +
+  tm_polygons("total_pop_10")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -34,17 +34,20 @@ install.packages("tmap")
 library(tmap)
 library(magick)
 
-states <- map_data("state")
+library(spData)
+library(sf)
 
-data("World")
-tmap_mode("view")
-tm_shape(World) +
-  tm_polygons("HPI")
+us_states2163 = st_transform(us_states, 2163)
+us_states_range = st_bbox(us_states2163)[4] - st_bbox(us_states2163)[2]
 
-urb_anim = tm_shape(world) + tm_polygons() + 
-  tm_shape(urban_agglomerations) + tm_dots(size = "population_millions") +
-  tm_facets(along = "year", free.coords = FALSE)
-tmap_animation(urb_anim, filename = "anim_map.gif", delay = 25)
+us_states_map = tm_shape(us_states2163) +
+  tm_polygons() + 
+  tm_layout(frame = FALSE)
+
+us_states_map
+
+tm_shape(us_states2163) +
+  tm_polygons("total_pop_10")
 
 library(ggplot2)
 
