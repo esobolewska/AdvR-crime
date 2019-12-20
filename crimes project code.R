@@ -32,8 +32,14 @@ urban_agglomerations <- urban_agglomerations
 
 install.packages("tmap")
 library(tmap)
+library(magick)
 
 states <- map_data("state")
+
+data("World")
+tmap_mode("view")
+tm_shape(World) +
+  tm_polygons("HPI")
 
 urb_anim = tm_shape(world) + tm_polygons() + 
   tm_shape(urban_agglomerations) + tm_dots(size = "population_millions") +
@@ -42,9 +48,12 @@ tmap_animation(urb_anim, filename = "anim_map.gif", delay = 25)
 
 library(ggplot2)
 
+ucr <- ucr[!is.na(ucr$jurisdiction),]
+ucr$year <- as.integer(ucr$year)
+
 p <- ggplot(ucr, aes(x = violent_crime_total, 
                      y = state_population, 
-                     colour = jurisdiction)) +
+                     colour = as.factor(jurisdiction))) +
   geom_point(show.legend = FALSE, alpha = 0.7) +
   scale_color_viridis_d() +
   scale_size(range = c(2, 12)) +
@@ -56,4 +65,4 @@ p
 library("gganimate")
 
 p + transition_time(year) +
-  labs(title = "Year: {frame_time}")
+  labs(title = "Year: {frame_time}", range=c(2001L,2017L))
