@@ -70,8 +70,12 @@ tm_shape(us_states2163) +
   tm_polygons("total_pop_10")
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+```{r}
+# install.packages("gganimate")
+library("gganimate")
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+bubbles <- p + transition_time(year) +
+  labs(title = "Year: {frame_time}", range=c(2001L,2017L))
+bubbles
+```
