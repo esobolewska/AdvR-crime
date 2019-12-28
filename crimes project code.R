@@ -22,15 +22,15 @@ library(mapdata)
 library(maps)
 library(ggmap)
 
-install.packages("spData")
+# install.packages("spData")
 library(spData)
 
-install.packages("sf")
+# install.packages("sf")
 library(sf)
 
 urban_agglomerations <- urban_agglomerations
 
-install.packages("tmap")
+# install.packages("tmap")
 library(tmap)
 library(magick)
 
@@ -67,5 +67,9 @@ p
 # install.packages("gganimate")
 library("gganimate")
 
-p + transition_time(year) +
+bubbles <- p + transition_time(year) +
   labs(title = "Year: {frame_time}", range=c(2001L,2017L))
+
+anim_save("bubbles.gif", bubbles)
+while suppressing results from the code chunk results = FALSE.
+![](goo.gif)
