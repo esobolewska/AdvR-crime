@@ -19,6 +19,9 @@ library(plotly)
 library(panelr)
 library(knitr)
 library(funModeling)
+library(spData)
+library(sf)
+library(tmap)
 ```
 
 # Introduction
@@ -238,20 +241,62 @@ According to recent surveys regarding the United States expenditures, spendings 
 1. liczba prisoners:
 
 ```{r warning=FALSE}
-p <- ggplot(data = df, aes(x = year, y = value, group = 1, 
-            text = paste("Year: ", year,
-                         "<br>Number of prisoners:", value))) +
-  geom_line() + 
-  geom_point() + 
-  # scale_color_viridis() + 
-  # scale_fill_viridis() +
-  labs(title = "Number of prisoners in the USA by year", x = "Year", y = "Number of prisoners") +
-  theme_minimal()
-
-ggplotly(p, tooltip = "text")
+# p <- ggplot(data = df, aes(x = year, y = value, group = 1, 
+#             text = paste("Year: ", year,
+#                          "<br>Number of prisoners:", value))) +
+#   geom_line() + 
+#   geom_point() + 
+#   # scale_color_viridis() + 
+#   # scale_fill_viridis() +
+#   labs(title = "Number of prisoners in the USA by year", x = "Year", y = "Number of prisoners") +
+#   theme_minimal()
+# 
+# ggplotly(p, tooltip = "text")
 ```
 
-2. średni crime per state dla dwóch typów crimes (violent i proverty); mapa; który najbardziej na podstawie całej historii
+### Average historical violent crimes vs. property crimes per population across states
+
+Below can be seen maps of US states and in 
+
+```{r}
+ucr_grouped <- ucr %>% 
+                  group_by(jurisdiction) %>% 
+                  summarise(
+                    violent_crime_total = mean(violent_crime_total),
+                    property_crime_total = mean(property_crime_total))
+names(ucr_grouped)[names(ucr_grouped) == "jurisdiction"] <- "NAME"
+
+ucr_grouped
+```
+
+
+```{r}
+us_states_ucr <- merge(us_states, ucr_grouped, by = "NAME")
+us_states_ucr$violent_crime_per_pop <- us_states_ucr$violent_crime_total/us_states_ucr$total_pop_15
+us_states_ucr$property_crime_per_pop <- us_states_ucr$property_crime_total/us_states_ucr$total_pop_15
+
+ggp1 <- ggplot(data = us_states_ucr) +
+    geom_sf(aes(fill = property_crime_per_pop)) +
+    scale_fill_viridis_c(option = "viridis", trans = "sqrt")
+
+ggp2 <- ggplot(data = us_states_ucr) +
+    geom_sf(aes(fill = violent_crime_per_pop)) +
+    scale_fill_viridis_c(option = "viridis", trans = "sqrt")
+```
+
+
+### {.tabset .tabset-fade .tabset-pills}
+#### Property crimes per population
+
+```{r, echo=FALSE}
+ggp1
+```
+
+#### Violent crimes per population
+
+```{r, echo=FALSE}
+ggp2
+```
 
 3. 
 
