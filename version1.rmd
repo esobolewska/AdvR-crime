@@ -1,0 +1,207 @@
+---
+title: "Crimes and incarceration in the United States"
+author: "Ewelina Osowska and Ewa Sobolewska"
+date: "10-01-2019"
+output:
+  rmarkdown::html_document:
+    theme: yeti
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(readr)
+library(dplyr)
+library(gridExtra)
+library(ggplot2)
+library(plotly)
+library(panelr)
+library(knitr)
+```
+
+# Introduction
+
+blablabla
+
+# Dataset description
+
+The datasets used in the below analysis were sourced from www.kaggle.com website [^kaggle]. They were created based on several sources including the Bureau of Justice Statistics [^bjs] and FBI Uniform Crime Reporting Program [^fbi]. The National Prisoner Statistics Program conducted by the Bureau of Justice Statistics has collected data on the number of prisoners in state and federal prison facilities since 1926. It is produced annually on national and state level. Data are sourced from the 50 state departments of correction, the Federal Bureau of Prisons, and until 2001, from the District of Columbia. The UCR Program provides statistics on violent crime (murder and nonnegligent manslaughter, rape, robbery, and aggravated assault) and property crime (burglary, larceny-theft, and vehicle theft). Data are collected annually and are available on national, state and city level. For the purposes of our analysis we are using state-level statistics.
+
+Additionally, we individually collected data on prison expenditures provided by the Bureau of Justice Statistics[^4] for each state in 2016 which is the lastest data available. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
+
+
+### UCR 
+(...) opis zmiennych czym są, co oznaczają + może summary
+
+```{r, message=FALSE, warning=FALSE}
+ucr <- read_csv("data/ucr_by_state.csv")
+```
+
+(...) tutaj moze dodac do UCR area z tabeli przestrzennej, jakiś opis? dodałam zmienna reion, moze nam sie potem przyda do podzialu
+
+```{r}
+library(spData)
+library(sf)
+us_states_info <- data.frame(area_km2 = as.numeric(us_states$AREA), 
+                             jurisdiction = us_states$NAME, 
+                             region = us_states$REGION)
+us_states_info
+```
+
+
+### Incarcarations in prison
+```{r, message=FALSE, warning=FALSE}
+prison <- read_csv("data/prison_custody_by_state.csv")
+```
+
+## Prison expenditures
+```{r, message=FALSE, warning=FALSE}
+prison_exp_2016 <- read_delim("data/prison_expenditures.csv", ";")
+```
+
+# Data preprocessing
+
+## Dataframe shape and missing values 
+
+### Prison dataset
+
+The prison data, compared to ucr is in a panel form, consisting of years as columns. Using long_panel we converted the dataframe so that each row is a different jurisdiction and year.
+
+```{r}
+colnames(prison)[3:18] <- paste0(colnames(prison)[3:18],'1')
+prison_panel <- long_panel(prison, begin = 2001, end = 2016, label_location = "beginning", id = "jurisdiction")
+names(prison_panel)[names(prison_panel) == "wave"] <- "year"
+names(prison_panel)[names(prison_panel) == "1"] <- "prison"
+kable(head(prison_panel))
+```
+
+### UCR dataset
+
+The ucr dataset has a lot of missing values, compared to the other datasets that have none. We dropped the last 6 columns that were completely empty and then we dropped rows consisting of only missing values. It leaves all columns without any missing values apart from "rape_revised" with 612 missing values and "rape_legacy" with 104 missing values.
+
+```{r}
+# removing last 6 columns
+ucr <- ucr[, -c(16:21)]
+# removing all missing rows
+ind <- apply(ucr, 1, function(x) all(is.na(x)))
+ucr <- ucr[ !ind, ]
+# showing sum of missing values per columns
+sapply(ucr, function(x) sum(is.na(x)))
+```
+
+As you can see on plot on the left below, in the last two years, 2016 and 2017, there is an additional obervation ie. jurisdiction. Looking at the plot on the right, New York is missing in one year, Puerto Rico is visible in only 3 years. District of Columbia is sometimes renamed as DC, but overall it sums up to all 17 years.
+
+```{r, fig.width = 10, fig.asp = .25}
+plot.data1 = ucr %>% group_by(year) %>% count()
+ggp1 = ggplot(data = plot.data1, aes(x=year, y = n)) + geom_bar(stat="identity")+
+  theme(axis.title.x=element_blank())
+
+plot.data2 = ucr %>% group_by(jurisdiction) %>% count() %>% arrange(n) %>% filter(n<17)
+ggp2 = ggplot(data = plot.data2, aes(x=jurisdiction, y = n)) + geom_bar(stat="identity")+
+  theme(axis.title.x=element_blank())
+
+grid.arrange(ggp1, ggp2, ncol = 2)
+```
+
+We renamed "DC" to "District of Columbia" and dropped observiations with "Puerto Rico". We also (...)uzupełnienie wartości Nowego Jorku np średnia.
+
+```{r}
+ucr$jurisdiction[ucr$jurisdiction=="DC"] <- "District of Columbia"
+ucr <- ucr %>% filter(jurisdiction!="Puerto Rico")
+```
+
+The remaining missing columns (...) czy wyrzucamy czy zostawiamy czy potem cos z nimi zrobimy, co to w ogole za zmienne
+
+```{r}
+rape_df <- data.frame(year=2001:2017)
+rape_revised_count <- ucr[!is.na(ucr$rape_revised),] %>% 
+                            group_by(year) %>% 
+                            count(name="rape_revised_count")
+rape_legacy_count <- ucr[!is.na(ucr$rape_legacy),] %>% 
+                            group_by(year) %>% 
+                            count(name="rape_legacy_count")
+rape_df <- left_join(rape_df, rape_revised_count, by="year")
+rape_df <- left_join(rape_df, rape_legacy_count, by="year")
+```
+### {.tabset .tabset-fade .tabset-pills}
+#### Hide data
+
+#### Show data
+```{r}
+kable(rape_df)
+```
+
+## Unifying state names
+
+In the prison dataset, District of Columbia is named as Federal and in prison_exp_2016 is named as Washington, D.C., so in order to unify the names we ranamed both to District of Columbia. We also renamed the variable State and type of government to jurisdiction for easier further calculations.
+
+```{r}
+setdiff(prison$jurisdiction %>% unique(), ucr$jurisdiction %>% unique())
+```
+
+```{r}
+setdiff(prison_exp_2016$`State and type of government` %>% unique(), ucr$jurisdiction %>% unique())
+```
+
+```{r}
+prison$jurisdiction[prison$jurisdiction=="Federal"] <- "District of Columbia"
+names(prison_exp_2016)[names(prison_exp_2016) == "State and type of government"] <- "jurisdiction"
+prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <- "District of Columbia"
+```
+
+# Background
+
+According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period. (...)
+
+
+# Statistical analysis of the dataset
+
+jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
+czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
+
+Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
+
+
+jak wygląda liczba uwięzionych na przestrzeni lat? dla całego kraju i dla poszczególnych stanów?
+
+
+```{r warning=FALSE}
+prison_country <- prison[,c(3:18)]
+prison_country <- sapply(prison_country, sum)
+df <- stack(prison_country)
+colnames(df) <- c("value", "year")
+```
+
+```{r warning=FALSE}
+p <- ggplot(data = df, aes(x = year, y = value, group = 1, 
+            text = paste("Year: ", year,
+                         "<br>Number of prisoners:", value))) +
+  geom_line() + 
+  geom_point() + 
+  # scale_color_viridis() + 
+  # scale_fill_viridis() +
+  labs(title = "Number of prisoners in the USA by year", x = "Year", y = "Number of prisoners") +
+  theme_minimal()
+
+ggplotly(p, tooltip = "text")
+```
+
+
+dodatkowe zmienne
+-> area (ok) - w kodzie
+-> wydatki na prisons (ok) - w excelu , 2016
+
+
+
+-> co poza mapą i bombelkami?
+- heatmapa
+- 
+
+
+-> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
+
+[^kaggle]: Source https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv
+[^bjs]: Source https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269  
+[^fbi]: Source https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm  
+
