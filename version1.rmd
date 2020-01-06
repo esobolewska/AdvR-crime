@@ -146,7 +146,7 @@ ucr$rape_revised <- NULL
 colnames(ucr)
 ```
 
-```{r, fig.width = 6, fig.asp = 1.3,}
+```{r, fig.width = 7, fig.asp = 1.1,}
 pl <- vector("list", length = ncol(ucr[,c(5:13)])-1)
 colors <- viridis(8)
 for(ii in seq_along(pl)){
@@ -268,21 +268,16 @@ https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-inca
 1. liczba prisoners:
 
 ```{r, warning=FALSE}
-# df <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
-# head(df)
-```
+prison_panel_year <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
 
-```{r, warning=FALSE}
-# p <- ggplot(data = df, aes(x = as.factor(year), y = value, color = year, group = 1,
-#             text = paste("Year: ", year,
-#                          "<br>Number of prisoners:", value))) +
-#   geom_point() + 
-#   scale_color_viridis() + 
-#   labs(title = "Number of prisoners in the USA per year", x = "Year", y = "Number of prisoners") +
-#   theme_minimal() +
-#   theme(legend.position = "none")
-# 
-# ggplotly(p, tooltip = "text")
+p <- ggplot(data = prison_panel_year, aes(x = year, y = value, color = year)) +
+  geom_point() +
+  scale_color_viridis_d() +
+  labs(title = "Number of prisoners in the USA per year", x = "Year", y = "Number of prisoners") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplotly(p, tooltip = "text")
 ```
 
 ### Average historical violent crimes vs. property crimes per population across states
