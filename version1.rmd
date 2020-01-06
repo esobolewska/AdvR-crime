@@ -158,8 +158,8 @@ for(ii in seq_along(pl)){
           theme(legend.position = "none",
                 axis.title.x = element_blank(),
                 axis.title.y = element_blank()) +
-          labs(title = .col)+ 
-          scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+ 
+          labs(title = .col) + 
+          scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) + 
           scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
   
   pl[[ii]] <- .p
@@ -246,6 +246,9 @@ prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <
 
 # Background
 
+
+
+
 The United States has the largest prison population in the world, and the highest per capita incarceration rate. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period. 
 
 Accorindg to Hartney [^hartney], 
@@ -262,22 +265,29 @@ Crime rates do not account for incarceration rates.
 
 
 https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-incarceration.pdf
+https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf
 
 
 
-1. liczba prisoners:
+
+According to Travis, Western and Redburn [^travis] from 1973 to 2009, the state and federal prison populations had a stable growth from about 200,000 to 1.5 million. It started declining slightly in the following years. This can be also observed on below plot presenting the trend of the number of prisoners during period 2001-2016. We can see that the number od prisoners grows from 2001 to 2009 and starts to decrease in the next years. 
 
 ```{r, warning=FALSE}
 prison_panel_year <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
 
-p <- ggplot(data = prison_panel_year, aes(x = year, y = value, color = year)) +
+p <- ggplot(data = prison_panel_year, aes(x = year, y = value, color = year,  
+                                          text = paste("Year: ", year,
+                                          "<br>Number of prisoners:", comma(round(value), 0)))) +
   geom_point() +
   scale_color_viridis_d() +
-  labs(title = "Number of prisoners in the USA per year", x = "Year", y = "Number of prisoners") +
+  labs(title = "Number of prisoners in state and federal prison in the USA per year", 
+       x = "Year", 
+       y = "Number of prisoners") +
   theme_minimal() +
   theme(legend.position = "none")
-
-ggplotly(p, tooltip = "text")
+  
+ggplotly(p, tooltip = "text") %>%  
+  layout(yaxis = list(tickformat = "%"))
 ```
 
 ### Average historical violent crimes vs. property crimes per population across states
@@ -384,19 +394,6 @@ Does this significant investment into imprisonment improve public safety? wydatk
 jak wygląda liczba uwięzionych na przestrzeni lat? dla całego kraju i dla poszczególnych stanów?
 
 
-
-
-dodatkowe zmienne
--> area (ok) - w kodzie
--> wydatki na prisons (ok) - w excelu , 2016
-
-
-
--> co poza mapą i bombelkami?
-- heatmapa
-- 
-
-
 -> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
 
 [^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv
@@ -404,5 +401,7 @@ dodatkowe zmienne
 [^fbi]: Source: https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm  
 [^prison_exp]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
 [^estimated_crime]: "For agencies supplying 3 to 11 months of data, the national UCR Program estimates for the missing data by following a standard estimation procedure using the data provided by the agency. If an agency has supplied less than 3 months of data, the FBI computes estimates by using the known crime figures of similar areas within a state and assigning the same proportion of crime volumes to nonreporting agencies." (cited from https://www.ucrdatatool.gov/faq.cfm)
-[^area]: Sources: https://en.wikipedia.org/wiki/Alaska and https://en.wikipedia.org/wiki/Hawaii
+[^area]: Sources: https://en.wikipedia.org/wiki/Alaska and https://en.wikipedia.org/wiki/Hawaii.
+[^travis]: "The Growth of incarceration in the United States. Exploring Causes and Consequences", Jeremy Travis, Bruce Western and Steve Redburn, Committee on Law and Justice, Washington, DC 2014, https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf.
+
 
