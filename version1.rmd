@@ -282,18 +282,21 @@ ggplotly(p, tooltip = "text")
 
 ### Average historical violent crimes vs. property crimes per population across states
 
-Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes.
 
-```{r, fig.width = 10}
-
-ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
+```{r, fig.width = 5}
+library(reshape2)
+plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
           group_by(region) %>% 
           summarise(violent_crime_total = mean(violent_crime_total),
-                    property_crime_total = mean(property_crime_total)) %>%  kable_f()
+                    property_crime_total = mean(property_crime_total)) %>%  melt()
 
-# ggplot(data=left_join(ucr, us_states_info, by="jurisdiction")) + geom_density(aes(x=property_crime_total))+ geom_density(aes(x=violent_crime_total))+ facet_grid(rows = vars(region))
+ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
+   geom_bar(stat="identity", width=.5, position = "fill") +
+  theme_minimal() + 
+  scale_fill_viridis_d()
 ```
 
+Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes.
 
 ```{r}
 #create df with mean values across years per state from ucr
@@ -310,36 +313,72 @@ us_states_ucr <- merge(us_states, ucr_grouped, by = "NAME")
 us_states_ucr$violent_crime_per_pop <- us_states_ucr$violent_crime_total/us_states_ucr$total_pop_15
 us_states_ucr$property_crime_per_pop <- us_states_ucr$property_crime_total/us_states_ucr$total_pop_15
 
+us_states_midwest <- us_states %>% 
+                        filter(REGION=="Midwest") %>% 
+                        st_union() %>% 
+                        cbind(data.frame(REGION="Midwest")) %>% 
+                        st_sf()
+
+us_states_norteast <- us_states %>% 
+                        filter(REGION=="Norteast") %>% 
+                        st_union() %>% 
+                        cbind(data.frame(REGION="Norteast")) %>% 
+                        st_sf()
+
+us_states_south <- us_states %>% 
+                        filter(REGION=="South") %>% 
+                        st_union() %>% 
+                        cbind(data.frame(REGION="South")) %>% 
+                        st_sf()
+
+us_states_west <- us_states %>% 
+                        filter(REGION=="West") %>% 
+                        st_union() %>% 
+                        cbind(data.frame(REGION="West")) %>% 
+                        st_sf()
+
+us_states_regions <- rbind(us_states_midwest, us_states_norteast, us_states_south, us_states_west) %>%                                  st_sf()
+
+
 # create usa map for both crime types
-usa1 <- ggplot(data = us_states_ucr) +
-          geom_sf(aes(fill = property_crime_per_pop), lwd = 0) +
+usa1 <- ggplot() +
+          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0) +
           scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+          theme(legend.position = "none") +
           theme_minimal()
+
 usa2 <- ggplot(data = us_states_ucr) +
-          geom_sf(aes(fill = violent_crime_per_pop), lwd = 0) +
+          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0) +
           scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+          theme(legend.position = "none") +
           theme_minimal()
 
 # format main map
 usa_all1 <- usa1 + 
               ggtitle("Property crimes per population")+
-              theme(legend.position = "right")
+              theme(legend.position = "right") +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 1) +
+              scale_color_manual(values = heat.colors(6)[2:5])
 usa_all2 <- usa2 + 
               ggtitle("Violent crimes per population")+
-              theme(legend.position = "right")
+              theme(legend.position = "right") +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 1) +
+              scale_color_manual(values = heat.colors(6)[2:5])
 # zoom and format zoomed map of DC
 usa_dc1 <- usa1 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
             guides(fill=FALSE)+
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
-                  axis.ticks = element_blank())
+                  axis.ticks = element_blank(),
+                  legend.position = "none")
 usa_dc2 <- usa2 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
             guides(fill=FALSE)+
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
-                  axis.ticks = element_blank())
+                  axis.ticks = element_blank(),
+                  legend.position = "none")
 
 # combine both plots and add red rectangle around zoomed area
 ggp1 <- usa_all1 + 
