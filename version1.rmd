@@ -1,13 +1,15 @@
 ---
-  title: "Crimes and incarceration in the United States"
+title: "Crimes and incarceration in the United States"
 author: "Ewelina Osowska and Ewa Sobolewska"
 date: "10-01-2019"
 output:
-  rmarkdown::html_document:
-  theme: yeti
-toc: true
-toc_float: true
-toc_depth: 2
+  rmarkdown::html_document: 
+    theme: yeti
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    code_folding: hide
+
 ---
   
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
@@ -27,7 +29,7 @@ library(formattable)
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
-    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F)
+    kable_styling(bootstrap_options = c("hover", "condensed", "responsive"), full_width = F)
 }
 ```
 
@@ -39,7 +41,10 @@ blablabla
 
 The datasets used in the below analysis were sourced from www.kaggle.com website [^kaggle]. They were created based on several sources including the Bureau of Justice Statistics [^bjs] and FBI Uniform Crime Reporting Program [^fbi]. The National Prisoner Statistics Program conducted by the Bureau of Justice Statistics has collected data on the number of prisoners in state and federal prison facilities since 1926. It is produced annually on national and state level. Data are sourced from the 50 state departments of correction, the Federal Bureau of Prisons, and until 2001, from the District of Columbia. The UCR Program provides statistics on violent and property crimes. Data are collected annually and are available on national, state and city level. For the purposes of our analysis we are using state-level statistics.
 
-Additionally, we individually collected data on prison expenditures provided by the Bureau of Justice Statistics [^prison_exp] for each state in 2016 which is the lastest data available. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
+Additionally, we individually collected data on federal expenditures for prisons provided by the Bureau of Justice Statistics [^prison_exp] for each state in 2016 which is the lastest data available. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
+
+(...)
+dodać więcej szczegółów o expendirutes
 
 ## UCR 
 
@@ -52,11 +57,13 @@ ucr <- read_csv("data/ucr_by_state.csv")
 ucr$year <- as.factor(ucr$year)
 ```
 
+Below are listed all column names from UCR dataset.
+
 ```{r, message=FALSE, warning=FALSE}
 colnames(ucr)
 ```
 
-The ucr dataset has a lot of missing values, compared to the other datasets that have none. We dropped the last 6 columns that were completely empty and then we dropped rows consisting of only missing values. It leaves all columns without any missing values apart from "rape_revised" with 612 missing values and "rape_legacy" with 104 missing values.
+The UCR dataset has a lot of missing values, compared to the other datasets that have none. We dropped the last 6 columns that were completely empty and then we dropped rows consisting of only missing values. It leaves all columns without any missing values apart from "rape_revised" with 612 missing values and "rape_legacy" with 104 missing values.
 
 ```{r}
 # removing last 6 columns
@@ -101,21 +108,7 @@ ucr$jurisdiction[ucr$jurisdiction=="DC"] <- "District of Columbia"
 ucr <- ucr %>% filter(jurisdiction!="Puerto Rico")
 ```
 
-```{r}
-# interpolation <- data %>%
-#   group_by(country) %>%
-#   mutate(valueIpol = approx(year, women_part, year, 
-#                             method = "linear", rule = 1:2, f = 0, ties = mean)$y)
-# i=0
-# for (i in seq_along(interpolation$valueIpol)) {
-#   if (is.na(interpolation$women_part[i]) == FALSE) 
-#     i = i+1
-#   else if (is.na(interpolation$women_part[i]) == TRUE) 
-#     interpolation$women_part[i] <- interpolation$valueIpol[i]
-# }
-```
-
-We also analysed the missing values of variables *rape_revised* and *rape_legacy*. Because there are so many missings and they mostly do not occur in the same year, we can't compare them and that's why we decided to drop them. 
+We also analysed the missing values of variables *rape_revised* and *rape_legacy*. Because there are so many missings and they mostly do not occur in the same year, we can't compare them and that's why we decided to drop them. The comparison of number of observations for both variables can be seen in the table below.
 
 ```{r}
 rape_df <- data.frame(year=as.factor(2001:2017))
@@ -142,14 +135,18 @@ ucr$rape_legacy <- NULL
 ucr$rape_revised <- NULL
 ```
 
+These are the final columns that are in the UCR dataset.
+
 ```{r}
 colnames(ucr)
 ```
 
-```{r, fig.width = 7, fig.asp = 1.1,}
+On the plots below are presented distributions of number of different types of crimes. They are mainly concentrated near 0. There are however a few spikes visible especially in case of robbery, burglary and larceny indicating outliers. In case of larceny, we can also observe that it has two peaks that we can attribute to multiple modes.
+
+```{r, fig.width = 9, fig.asp = 1.1, message=FALSE, warning=FALSE}
 pl <- vector("list", length = ncol(ucr[,c(5:13)])-1)
 colors <- viridis(8)
-for(ii in seq_along(pl)){
+for(ii in seq_along(pl)) {
   .col <- colnames(ucr[,c(5:13)])[-1][ii]
   .p <- ggplot(ucr, aes_string(x=.col, fill="colors[ii]", color="colors[ii]")) + 
           geom_density(alpha=0.3) + 
@@ -160,35 +157,33 @@ for(ii in seq_along(pl)){
                 axis.title.y = element_blank()) +
           labs(title = .col) + 
           scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) + 
-          scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+          scale_x_continuous(labels = function(x) format(x, scientific = FALSE)) 
   
   pl[[ii]] <- .p
 }
 
 grid.arrange(grobs=pl, ncol=2)
 ```
- (...)
 
 ## Incarcarations in prison
 
-```{r, message=FALSE, warning=FALSE}
+The prison data, compared to ucr is in a panel form, consisting of years as columns from 2001 to 2016. Using long_panel, we converted the dataframe so that each row is a different jurisdiction and year. The dataset includes also information indicating whether the number of prisoners also includes jails population.
+
+```{r message=FALSE, warning=FALSE}
 prison <- read_csv("data/prison_custody_by_state.csv")
-colnames(prison)
-```
 
-The prison data, compared to ucr is in a panel form, consisting of years as columns. Using long_panel we converted the dataframe so that each row is a different jurisdiction and year.
-
-```{r}
 colnames(prison)[3:18] <- paste0(colnames(prison)[3:18],'1')
 prison_panel <- long_panel(prison, begin = 2001, end = 2016, label_location = "beginning", id = "jurisdiction")
 names(prison_panel)[names(prison_panel) == "wave"] <- "year"
 names(prison_panel)[names(prison_panel) == "1"] <- "prison"
 prison_panel$year <- as.factor(prison_panel$year)
+
 kable_f(head(prison_panel))
 ```
 
-
 ## Prison expenditures
+
+The next set of data concerns federal expenditures on corrections. We only obtained data from 2016 which is the last available period. Below in the table can be seen 6 example states with the value of expenditures. 
 
 ```{r, message=FALSE, warning=FALSE}
 prison_exp_2016 <- read_delim("data/prison_expenditures.csv", ";")
@@ -200,7 +195,7 @@ kable_f(head(prison_exp_2016))
 
 ## State area and region
 
-In order to enhance further visualisations, we add an information about state area and region based on R built-in *us_states* dataset. 
+In order to enhance further visualisations, we add an information about state area and region based on R built-in *us_states* dataset. There are four basic regions distinguished at thi stage: Midwest, Northeast, South and West.
 
 ```{r warning=FALSE}
 library(spData)
@@ -224,17 +219,11 @@ us_states_info <- rbind(us_states_info, additional_states)
 
 ## Unifying state names
 
-In the prison dataset, District of Columbia is named as Federal and in prison_exp_2016 is named as Washington, D.C., so in order to unify the names we ranamed both to District of Columbia. We also renamed the variable State and type of government to jurisdiction for easier further calculations.
+In the prison dataset, District of Columbia is named as Federal and in prison_exp_2016 is named as Washington, D.C. In order to unify the names, we ranamed both to District of Columbia. We also renamed the variable State and type of government to jurisdiction for easier further calculations. 
 
-```{r}
+```{r warning=FALSE}
 setdiff(prison$jurisdiction %>% unique(), ucr$jurisdiction %>% unique())
-```
-
-```{r}
 setdiff(prison_exp_2016$`State and type of government` %>% unique(), ucr$jurisdiction %>% unique())
-```
-
-```{r}
 setdiff(ucr$jurisdiction %>% unique(), us_states_info$jurisdiction %>% unique())
 ```
 
@@ -244,45 +233,23 @@ names(prison_exp_2016)[names(prison_exp_2016) == "State and type of government"]
 prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <- "District of Columbia"
 ```
 
-# Background
+# Background (Ewelina)
 
-
-
-
-The United States has the largest prison population in the world, and the highest per capita incarceration rate. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period. 
-
-Accorindg to Hartney [^hartney], 
-
-
-
-The incarceration rate in the US is four times the world average.
-Some individual US states imprison up to six times as many people as do
-nations of comparable population.
-The US imprisons the most women in the world.
-Crime rates do not account for incarceration rates.
-
-(...)
-
-
-https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-incarceration.pdf
-https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf
-
-
-
+The United States has the largest prison population and the highest per capita incarceration rate in the world (it is four times the world average) [^hartney]. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016 [^bjs_report]. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period [^report]. 
 
 According to Travis, Western and Redburn [^travis] from 1973 to 2009, the state and federal prison populations had a stable growth from about 200,000 to 1.5 million. It started declining slightly in the following years. This can be also observed on below plot presenting the trend of the number of prisoners during period 2001-2016. We can see that the number od prisoners grows from 2001 to 2009 and starts to decrease in the next years. 
 
 ```{r, warning=FALSE}
 prison_panel_year <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
 
-p <- ggplot(data = prison_panel_year, aes(x = year, y = value, color = year,  
+p <- ggplot(data = prison_panel_year, aes(x = year, y = value/1000000, color = year,  
                                           text = paste("Year: ", year,
                                           "<br>Number of prisoners:", comma(round(value), 0)))) +
   geom_point() +
   scale_color_viridis_d() +
   labs(title = "Number of prisoners in state and federal prison in the USA per year", 
        x = "Year", 
-       y = "Number of prisoners") +
+       y = "Number of prisoners (in milions)") +
   theme_minimal() +
   theme(legend.position = "none")
   
@@ -292,26 +259,87 @@ ggplotly(p, tooltip = "text") %>%
 
 ### Average historical violent crimes vs. property crimes per population across states
 
+The following analyses exclude District of Columbia due to its specificity. Because we analysed the number of crimes per area and population, the value for that district would be significantly higher preventing us from proper conclusions. Below we can see plots that justify our decision.
 
-```{r, fig.width = 5}
+```{r warning=FALSE, message=FALSE, fig.height=9}
+library(ggrepel)
+plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
+                      group_by(jurisdiction) %>% 
+                      summarise(violent_crime_total = mean(violent_crime_total),
+                                area_km2 = mean(area_km2),
+                                state_population = mean(state_population))
 
-plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
-          group_by(region) %>% 
-          summarise(violent_crime_total = mean(violent_crime_total),
-property_crime_total = mean(property_crime_total)) %>%  melt()
+plot.data$highlight <- ifelse(plot.data$jurisdiction=="District of Columbia", 1, 0)
+plot.data <- plot.data %>% mutate(violent_per_area = violent_crime_total/area_km2,
+                                  violent_per_pop = violent_crime_total/state_population)
 
-ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
-   geom_bar(stat="identity", width=.5, position = "fill") +
-  theme_minimal() + 
-  scale_fill_viridis_d()
+ggp1 <- ggplot() + 
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area), 
+                               y = violent_per_area, 
+                               fill = as.factor(highlight)), 
+           stat="identity") + 
+  scale_fill_discrete(name="Jurisdiction", 
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "bottom") 
+
+ggp2 <- ggplot() + 
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop), 
+                               y = violent_per_pop, 
+                               fill = as.factor(highlight)), 
+           stat="identity") + 
+  scale_fill_discrete(name="Jurisdiction", 
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "bottom") 
+
+grid.arrange(ggp1, ggp2)
 ```
 
-Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes.
+The proportion of violent and property crimes is similar across regions, where violent crimes consist of 10%-20% of the total number of crimes. When comparing the proportions between regions, South has the highest ratio of violent crimes, while Hawaii and Alaska (remote region) have the lowest ratio. It is important to state that the remote region was created artificially and consist of only two drastically different states. This is shown in further analysis that Hawaii has one of the lowest proportions of violent per property crimes while Alaska has one of the highest.
 
+On the right plot below can be seen the average regional values with the maintained relation between regions. The South region has the highest number of crimes regardless of its significant area. 
 
-```{r}
+```{r, fig.width = 6, warning=FALSE, message=FALSE}
+library(reshape2)
+plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
+          filter(jurisdiction!="District of Columbia") %>% 
+          group_by(region) %>% 
+          summarise(
+            violent_crime_total = mean(violent_crime_total/area_km2),
+            property_crime_total = mean(property_crime_total/area_km2)) %>%  
+          melt()
+
+ggp1 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
+   geom_bar(stat="identity", width=.5, position = "fill") +
+   theme_minimal() + 
+   theme(legend.position = "bottom") +
+   scale_fill_viridis_d()
+
+ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
+   geom_bar(stat="identity", width=.5, position = "dodge") +
+   theme_minimal() + 
+   theme(legend.position = "bottom") +
+   scale_fill_viridis_d()
+
+# theme(
+#   legend.title = element_text(color = "blue", size = 14),
+#   legend.text = element_text(color = "red", size = 10)
+#   )
+
+grid.arrange(ggp1, ggp2, ncol=2)
+```
+
+Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes. In case of property crimes there is a visible division aligned with the historical North and South  during the Civil War. In the South there are more property crimes than in Northeast. However when looking at the north and the south in a geographical sense (dividing country horizontally), there is a difference for both types of crimes, once again with higher rate in the south. What is more, when comparing maps we can see a difference in the Northeast region concerning New York, Pennsylvania, New Jersey and Massachusetts. For all of these states, we see that there are more violent than property crimes per population. One more state in which the difference can also be seen is a southern state - Idaho.
+
+(...)
+
+```{r warning=FALSE, message=FALSE}
 #create df with mean values across years per state from ucr
 ucr_grouped <- ucr %>% 
+                  filter(jurisdiction!="District of Columbia") %>% 
                   group_by(jurisdiction) %>% 
                   summarise(violent_crime_total = mean(violent_crime_total),
                             property_crime_total = mean(property_crime_total))
@@ -346,7 +374,6 @@ us_states_west <- us_states %>%
                         st_sf()
 us_states_regions <- rbind(us_states_midwest, us_states_norteast, us_states_south, us_states_west) %>% st_sf()
 
-
 # create usa map for both crime types
 usa1 <- ggplot() +
           geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0) +
@@ -354,7 +381,7 @@ usa1 <- ggplot() +
           theme(legend.position = "none") +
           theme_minimal()
 usa2 <- ggplot(data = us_states_ucr) +
-            geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0) +
+          geom_sf(data = us_states_ucr, aes(fill = violent_crime_per_pop), lwd = 0) +
           scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
           theme(legend.position = "none") +
           theme_minimal()
@@ -363,13 +390,13 @@ usa2 <- ggplot(data = us_states_ucr) +
 usa_all1 <- usa1 + 
               ggtitle("Property crimes per population")+
               theme(legend.position = "right") +
-              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 1) +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
               scale_color_manual(values = heat.colors(6)[2:5])
 
 usa_all2 <- usa2 + 
               ggtitle("Violent crimes per population")+
                             theme(legend.position = "right") +
-              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 1) +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
               scale_color_manual(values = heat.colors(6)[2:5])
 
 # zoom and format zoomed map of DC
@@ -390,12 +417,12 @@ usa_dc2 <- usa2 +
 
 # combine both plots and add red rectangle around zoomed area
 ggp1 <- usa_all1 + 
-          annotation_custom(ggplotGrob(usa_dc2), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=1, fill=NA, color="red")
+          annotation_custom(ggplotGrob(usa_dc1), xmin= -80, ymax= 35)+
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
 
 ggp2 <- usa_all2 + 
           annotation_custom(ggplotGrob(usa_dc2), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=1, fill=NA, color="red")
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
 
 ```
 
@@ -413,32 +440,82 @@ ggp1
 ggp2
 ```
 
-### jakis kolejny rozdział
-
-3. 
-
-
-
 
 # Statistical analysis of the dataset
 
+Having introduced ....
+
+
+
 jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
-czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
+czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
+czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
 
 Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
 
+jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
 
-jak wygląda liczba uwięzionych na przestrzeni lat? dla całego kraju i dla poszczególnych stanów?
+klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
+
+
+
+
+
 
 
 -> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
 
-[^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv
-[^bjs]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269  
-[^fbi]: Source: https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm  
-[^prison_exp]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
-[^estimated_crime]: "For agencies supplying 3 to 11 months of data, the national UCR Program estimates for the missing data by following a standard estimation procedure using the data provided by the agency. If an agency has supplied less than 3 months of data, the FBI computes estimates by using the known crime figures of similar areas within a state and assigning the same proportion of crime volumes to nonreporting agencies." (cited from https://www.ucrdatatool.gov/faq.cfm)
+[^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv.
+[^bjs]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269.
+[^fbi]: Source: https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm.
+[^prison_exp]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286.
+[^estimated_crime]: "For agencies supplying 3 to 11 months of data, the national UCR Program estimates for the missing data by following a standard estimation procedure using the data provided by the agency. If an agency has supplied less than 3 months of data, the FBI computes estimates by using the known crime figures of similar areas within a state and assigning the same proportion of crime volumes to nonreporting agencies." (cited from https://www.ucrdatatool.gov/faq.cfm).
 [^area]: Sources: https://en.wikipedia.org/wiki/Alaska and https://en.wikipedia.org/wiki/Hawaii.
+[^hartney]: "US Rates of Incarceration: A Global Perspective", Christopher Hartney, Research from the National Council on Crime and Delinquency, November 2006, https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-incarceration.pdf.
+[bjs_report]: "Correctional Populations in the United States", Danielle Kaeble and Mary Cowhig, Bureau of Justice Statistics, 2016, https://www.bjs.gov/content/pub/pdf/cpus16.pdf.
+[^report]: Source: https://www.ed.gov/news/press-releases/report-increases-spending-corrections-far-outpace-education.
 [^travis]: "The Growth of incarceration in the United States. Exploring Causes and Consequences", Jeremy Travis, Bruce Western and Steve Redburn, Committee on Law and Justice, Washington, DC 2014, https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf.
 
+
+
+Robocze:
+```{r}
+library(reshape2)
+plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
+          group_by(jurisdiction) %>% 
+          summarise(
+            violent_crime_total = mean(violent_crime_total/area_km2),
+            property_crime_total = mean(property_crime_total/area_km2)) %>%  
+          melt()
+
+ggp1 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
+   geom_bar(stat="identity", width=.5, position = "fill") +
+   theme_minimal() +
+   theme(legend.position = "bottom", 
+         axis.text.x = element_text(angle = 90)) +
+   scale_fill_viridis_d()
+ggp1
+
+ ggp2 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
+    geom_bar(stat="identity", width=.5, position = "dodge") +
+    theme_minimal() +
+    theme(legend.position = "bottom",
+          axis.text.x = element_text(angle = 90)) +
+    scale_fill_viridis_d()
+ggp2
+```
+
+```{r}
+# interpolation <- data %>%
+#   group_by(country) %>%
+#   mutate(valueIpol = approx(year, women_part, year, 
+#                             method = "linear", rule = 1:2, f = 0, ties = mean)$y)
+# i=0
+# for (i in seq_along(interpolation$valueIpol)) {
+#   if (is.na(interpolation$women_part[i]) == FALSE) 
+#     i = i+1
+#   else if (is.na(interpolation$women_part[i]) == TRUE) 
+#     interpolation$women_part[i] <- interpolation$valueIpol[i]
+# }
+```
 
