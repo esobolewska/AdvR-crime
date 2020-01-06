@@ -44,6 +44,14 @@ The *crime_reporting_change* variable reflects instances when states' reporting 
 ucr <- read_csv("data/ucr_by_state.csv")
 ```
 
+```{r}
+ucr_others <- ucr[,c(1:4)]
+ucr_numeric <- ucr[,c(5:21)]
+
+ucr_numeric <- sapply(ucr_numeric, function(x) format(x, nsmall=0, big.mark=","))
+ucr <- cbind(ucr_others, ucr_numeric)
+```
+
 ```{r, message=FALSE, warning=FALSE}
 colnames(ucr)
 ```
@@ -62,7 +70,7 @@ sapply(ucr, function(x) sum(is.na(x)))
 
 As you can see on plot on the left below, in the last two years, 2016 and 2017, there is an additional obervation ie. jurisdiction. Looking at the plot on the right, New York is missing in one year, Puerto Rico is visible in only 3 years. District of Columbia is sometimes renamed as DC, but overall it sums up to all 17 years.
 
-```{r, fig.width = 10, fig.asp = .25}
+```{r, fig.width = 10, fig.asp = .25, message=FALSE, warning=FALSE}
 library(viridis)
 plot.data1 = ucr %>% group_by(year) %>% count()
 ggp1 = ggplot(data = plot.data1, aes(x=year, y=n, fill=year)) + 
@@ -163,6 +171,14 @@ grid.arrange(grobs=pl)
 prison <- read_csv("data/prison_custody_by_state.csv")
 ```
 
+```{r}
+prison_others <- prison[,c(1:2)]
+prison_numeric <- prison[,c(3:18)]
+
+prison_numeric <- sapply(prison_numeric, function(x) format(x, nsmall=0, big.mark=","))
+prison <- cbind(prison_others, prison_numeric)
+```
+
 ```{r, message=FALSE, warning=FALSE}
 head(prison)
 ```
@@ -177,10 +193,28 @@ names(prison_panel)[names(prison_panel) == "1"] <- "prison"
 kable(head(prison_panel))
 ```
 
+```{r}
+prison_panel <- as.data.frame(prison_panel)
+
+prison_panel_others <- prison_panel[,c(1:3)]
+prison_panel_numeric <- prison_panel[,4]
+
+prison_panel_numeric <- sapply(prison_panel_numeric, function(x) format(x, nsmall=0, big.mark=","))
+prison_panel <- cbind(prison_panel_others, prison_panel_numeric)
+```
+
 ## Prison expenditures
 
 ```{r, message=FALSE, warning=FALSE}
 prison_exp_2016 <- read_delim("data/prison_expenditures.csv", ";")
+```
+
+```{r}
+prison_exp_2016_others <- prison_exp_2016[,1]
+prison_exp_2016_numeric <- prison_exp_2016[,2]
+
+prison_exp_2016_numeric <- sapply(prison_exp_2016_numeric, function(x) format(x, nsmall=0, big.mark=","))
+prison_exp_2016 <- cbind(prison_exp_2016_others, prison_exp_2016_numeric)
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -197,6 +231,7 @@ library(sf)
 us_states_info <- data.frame(jurisdiction = us_states$NAME, 
                              region = us_states$REGION,
                              area_km2 = as.numeric(round(us_states$AREA, 0)))
+
 us_states_info
 ```
 
@@ -205,10 +240,18 @@ Because of the fact that there are two states missing in the us_states_info data
 ```{r warning=FALSE}
 additional_states <- data.frame(jurisdiction = c("Hawaii", "Alaska"),
            region = c("remote", "remote"),
-           area_km2 = c(16638, 1481346 ))
+           area_km2 = c(16638, 1481346))
 
 us_states_info <- rbind(us_states_info, additional_states)
 us_states_info
+```
+
+```{r warning=FALSE}
+us_states_info_others <- us_states_info[,c(1:2)]
+us_states_info_numeric <- us_states_info[,3]
+
+us_states_info_numeric <- sapply(us_states_info_numeric, function(x) format(x, nsmall=0, big.mark=","))
+us_states_info <- cbind(us_states_info_others, us_states_info_numeric)
 ```
 
 ## Unifying state names
@@ -235,23 +278,43 @@ prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <
 
 # Background
 
-According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period. (...)
+The United States has the largest prison population in the world, and the highest per capita incarceration rate. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period. 
+
+Accorindg to Hartney [^hartney], 
+
+
+
+The incarceration rate in the US is four times the world average.
+Some individual US states imprison up to six times as many people as do
+nations of comparable population.
+The US imprisons the most women in the world.
+Crime rates do not account for incarceration rates.
+
+(...)
+
+
+https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-incarceration.pdf
+
 
 
 1. liczba prisoners:
 
 ```{r warning=FALSE}
-# p <- ggplot(data = df, aes(x = year, y = value, group = 1, 
-#             text = paste("Year: ", year,
-#                          "<br>Number of prisoners:", value))) +
-#   geom_line() + 
-#   geom_point() + 
-#   # scale_color_viridis() + 
-#   # scale_fill_viridis() +
-#   labs(title = "Number of prisoners in the USA by year", x = "Year", y = "Number of prisoners") +
-#   theme_minimal()
-# 
-# ggplotly(p, tooltip = "text")
+df <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
+head(df)
+```
+
+```{r warning=FALSE}
+p <- ggplot(data = df, aes(x = as.factor(year), y = value, color = year, group = 1,
+            text = paste("Year: ", year,
+                         "<br>Number of prisoners:", value))) +
+  geom_point() + 
+  scale_color_viridis() + 
+  labs(title = "Number of prisoners in the USA per year", x = "Year", y = "Number of prisoners") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplotly(p, tooltip = "text")
 ```
 
 ### Average historical violent crimes vs. property crimes per population across states
@@ -276,12 +339,16 @@ us_states_ucr$violent_crime_per_pop <- us_states_ucr$violent_crime_total/us_stat
 us_states_ucr$property_crime_per_pop <- us_states_ucr$property_crime_total/us_states_ucr$total_pop_15
 
 ggp1 <- ggplot(data = us_states_ucr) +
-    geom_sf(aes(fill = property_crime_per_pop)) +
-    scale_fill_viridis_c(option = "viridis", trans = "sqrt")
+    geom_sf(aes(fill = property_crime_per_pop), lwd = 0) +
+    scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+    theme_minimal() +
+    labs(title = "Property crimes per population")
 
 ggp2 <- ggplot(data = us_states_ucr) +
-    geom_sf(aes(fill = violent_crime_per_pop)) +
-    scale_fill_viridis_c(option = "viridis", trans = "sqrt")
+    geom_sf(aes(fill = violent_crime_per_pop), lwd = 0) +
+    scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+    theme_minimal() +
+    labs(title = "Violent crimes per population")
 ```
 
 
@@ -314,26 +381,6 @@ Does this significant investment into imprisonment improve public safety? wydatk
 jak wygląda liczba uwięzionych na przestrzeni lat? dla całego kraju i dla poszczególnych stanów?
 
 
-```{r warning=FALSE}
-prison_country <- prison[,c(3:18)]
-prison_country <- sapply(prison_country, sum)
-df <- stack(prison_country)
-colnames(df) <- c("value", "year")
-```
-
-```{r warning=FALSE}
-p <- ggplot(data = df, aes(x = year, y = value, group = 1, 
-            text = paste("Year: ", year,
-                         "<br>Number of prisoners:", value))) +
-  geom_line() + 
-  geom_point() + 
-  # scale_color_viridis() + 
-  # scale_fill_viridis() +
-  labs(title = "Number of prisoners in the USA by year", x = "Year", y = "Number of prisoners") +
-  theme_minimal()
-
-ggplotly(p, tooltip = "text")
-```
 
 
 dodatkowe zmienne
