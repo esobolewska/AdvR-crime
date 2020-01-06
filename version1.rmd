@@ -1,15 +1,15 @@
 ---
-title: "Crimes and incarceration in the United States"
+  title: "Crimes and incarceration in the United States"
 author: "Ewelina Osowska and Ewa Sobolewska"
 date: "10-01-2019"
 output:
   rmarkdown::html_document:
-    theme: yeti
-    toc: true
-    toc_float: true
-    toc_depth: 2
+  theme: yeti
+toc: true
+toc_float: true
+toc_depth: 2
 ---
-
+  
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(readr)
 library(dplyr)
