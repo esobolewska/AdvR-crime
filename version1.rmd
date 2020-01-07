@@ -25,6 +25,7 @@ library(sf)
 library(tmap)
 library(kableExtra)
 library(formattable)
+library(factoextra)
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
@@ -38,9 +39,9 @@ blablabla
 
 # Data description and preprocessing
 
-The datasets used in the below analysis were sourced from www.kaggle.com website [^kaggle]. They were created based on several sources including the Bureau of Justice Statistics [^bjs] and FBI Uniform Crime Reporting Program [^fbi]. The National Prisoner Statistics Program conducted by the Bureau of Justice Statistics has collected data on the number of prisoners in state and federal prison facilities since 1926. It is produced annually on national and state level. Data are sourced from the 50 state departments of correction, the Federal Bureau of Prisons, and until 2001, from the District of Columbia. The UCR Program provides statistics on violent and property crimes. Data are collected annually and are available on national, state and city level. For the purposes of our analysis we are using state-level statistics.
+The datasets used in the below analysis were sourced from www.kaggle.com website [^kaggle]. They were created based on several sources including the Bureau of Justice Statistics [^bjs] and FBI Uniform Crime Reporting Program [^fbi]. The National Prisoner Statistics Program conducted by the Bureau of Justice Statistics has collected data on the number of prisoners in state and federal prison facilities since 1926. It is produced annually on national and state level. Data are sourced from 50 state departments of correction, the Federal Bureau of Prisons, and until 2001, from the District of Columbia. The UCR Program provides statistics on violent and property crimes. Data are collected annually and are available on national, state and city level. For the purposes of our analysis we are using state-level statistics.
 
-Additionally, we individually collected data on federal expenditures (direct expenditures; corrections) for correctional institutions provided by the Bureau of Justice Statistics for each state in 2016 which is the lastest data available [^prison_exp]. The correctional institutions include *prisons and penitentiaries, reformatories, jails, houses of correction, other named correctional institutions (correctional farms, workhouses, industrial schools, and training schools), institutions and facilities exclusively for the confinement of the criminally insane, institutions and facilities for the examination, evaluation, classification, and assignment of inmates, facilities for the confinement, treatment, and the rehabilitation of persons with drug or alcohol use disorders, if the institution is administered by a correctional agency*. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
+Additionally, we individually collected data on federal expenditures (direct expenditures; corrections) for correctional institutions provided by the Bureau of Justice Statistics for each state between 2009 and 2016 [^prison_exp]. The correctional institutions include *prisons and penitentiaries, reformatories, jails, houses of correction, other named correctional institutions (correctional farms, workhouses, industrial schools, and training schools), institutions and facilities exclusively for the confinement of the criminally insane, institutions and facilities for the examination, evaluation, classification, and assignment of inmates, facilities for the confinement, treatment, and the rehabilitation of persons with drug or alcohol use disorders, if the institution is administered by a correctional agency*. Later in the analysis we will use them in order to correlate the expenditures with the occurence of particular crimes. Apart from the number of total incarcerated prisoners we also collected information on the number of prisoners in private prisons across several states for the same years as prison expenditures [^prisoners].
 
 ## UCR 
 
@@ -169,25 +170,52 @@ The prison data, compared to ucr is in a panel form, consisting of years as colu
 prison <- read_csv("data/prison_custody_by_state.csv")
 
 colnames(prison)[3:18] <- paste0(colnames(prison)[3:18],'1')
-prison_panel <- long_panel(prison, begin = 2001, end = 2016, label_location = "beginning", id = "jurisdiction")
-names(prison_panel)[names(prison_panel) == "wave"] <- "year"
-names(prison_panel)[names(prison_panel) == "1"] <- "prison"
-prison_panel$year <- as.factor(prison_panel$year)
+prison <- long_panel(prison, begin = 2001, end = 2016, label_location = "beginning", id = "jurisdiction")
+names(prison)[names(prison) == "wave"] <- "year"
+names(prison)[names(prison) == "1"] <- "prison"
+prison$year <- as.factor(prison$year)
 
-kable_f(head(prison_panel))
+kable_f(head(prison))
+```
+
+## Number of prisoners in private prisons
+
+Similarly to prison data, private_prisons are also presented in a panel form and are transformed using long_panel. Additionally, we created a column showing a percentage of private prisoners among all incarcerated.
+
+```{r, warning=FALSE, message=FALSE}
+private_prisons <- read_delim("data/private_prisons.csv", ";", na="/")
+
+colnames(private_prisons)[2:9] <- paste0(colnames(private_prisons)[2:9],'1')
+private_prisons <- long_panel(private_prisons, begin = 2009, end = 2016, label_location = "beginning", id = "jurisdiction")
+names(private_prisons)[names(private_prisons) == "wave"] <- "year"
+names(private_prisons)[names(private_prisons) == "1"] <- "private_prisons"
+private_prisons$year <- as.factor(private_prisons$year)
+#creating new column
+private_prisons <- left_join(private_prisons, prison, by=c("state"="jurisdiction", "year")) %>%
+                        mutate(private_prisons_pct = round(private_prisons/prison*100,4)) %>% 
+                        select(year, state, private_prisons, private_prisons_pct)
+private_prisons$jurisdiction <- NULL
+
+kable_f(head(private_prisons))
 ```
 
 ## Prison expenditures
 
-The next set of data concerns federal expenditures on corrections. We only obtained data from 2016 which is the last available period. Below in the table can be seen 6 example states with the value of expenditures. 
+The next set of data concerns federal expenditures on corrections. As in the situation of the number of prisoners and private prisons the data was converted from a panel form with long_panel. 
 
 ```{r, message=FALSE, warning=FALSE}
-prison_exp_2016 <- read_delim("data/prison_expenditures.csv", ";")
+prison_exp <- read_delim("data/prison_expenditures.csv", ";")
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-kable_f(head(prison_exp_2016))
+prison_exp <- long_panel(prison_exp, begin = 2009, end = 2016, prefix="_", label_location = "end", id = "jurisdiction")
+names(prison_exp)[names(prison_exp) == "wave"] <- "year"
+prison_exp$year <- as.factor(prison_exp$year)
+prison_exp$jurisdiction <- NULL
+
+kable_f(head(prison_exp))
 ```
+
 
 ## State area and region
 
@@ -213,20 +241,13 @@ additional_states <- data.frame(jurisdiction = c("Hawaii", "Alaska"),
 us_states_info <- rbind(us_states_info, additional_states)
 ```
 
-## Unifying state names
+## District of Columbia
 
 In the prison dataset, District of Columbia is named as Federal and in prison_exp_2016 is named as Washington, D.C. In order to unify the names, we ranamed both to District of Columbia. We also renamed the variable State and type of government to jurisdiction for easier further calculations. 
 
 ```{r warning=FALSE}
-setdiff(prison$jurisdiction %>% unique(), ucr$jurisdiction %>% unique())
-setdiff(prison_exp_2016$`State and type of government` %>% unique(), ucr$jurisdiction %>% unique())
-setdiff(ucr$jurisdiction %>% unique(), us_states_info$jurisdiction %>% unique())
-```
-
-```{r}
-prison$jurisdiction[prison$jurisdiction=="Federal"] <- "District of Columbia"
-names(prison_exp_2016)[names(prison_exp_2016) == "State and type of government"] <- "jurisdiction"
-prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <- "District of Columbia"
+setdiff(ucr$jurisdiction %>% unique(), prison$jurisdiction %>% unique())
+setdiff(ucr$jurisdiction %>% unique(), private_prisons$state %>% unique())
 ```
 
 # Background
@@ -236,9 +257,9 @@ The United States has the largest prison population and the highest per capita i
 According to Travis, Western and Redburn [^travis] from 1973 to 2009, the state and federal prison populations had a stable growth from about 200,000 to 1.5 million. It started declining slightly in the following years. This can be also observed on below plot presenting the trend of the number of prisoners during period 2001-2016. We can see that the number od prisoners grows from 2001 to 2009 and starts to decrease in the next years. 
 
 ```{r, warning=FALSE}
-prison_panel_year <- prison_panel %>% group_by(year) %>% summarise(value = sum(prison))
+prison_year <- prison %>% group_by(year) %>% summarise(value = sum(prison))
 
-p <- ggplot(data = prison_panel_year, aes(x = year, y = value/1000000, color = year,  
+p <- ggplot(data = prison_year, aes(x = year, y = value/1000000, color = year,  
                                           text = paste("Year: ", year,
                                           "<br>Number of prisoners:", comma(round(value), 0)))) +
   geom_point() +
@@ -434,27 +455,75 @@ ggp2
 
 # Statistical analysis of the dataset
 
-Having introduced general information about incarceration and 
+Having introduced general information about incarceration and crimes, we move to a more detailed analysis of our data and examining the relationships between features.
+
+The first dependency we would like to find is the relation between the number of prisoners currently incarcerated and the number of crimes over time. Studies show that the increase of the rate of imprisonment could decrease the number of crimes as a result of isolation of sentenced individuals and their resocialization or demotivating factor for potential criminals. The magnitude of the change cannot be easily predicted, but some studies claim that along with a higher incarceration rate we can observe the diminishing marginal number of crimes [^travis]. 
+
+> jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
+> czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
+> czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
+
+The second dependency we want to reveal is the impact of investment on imprisonment on public safety quantified by the number of different kinds of crimes. 
+
+> Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
 
 
 
-jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
-czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
-czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
-
-Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
-
-jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
-
-klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
+> jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
 
 
 
+> klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
+
+
+```{r}
+data_to_cluster_1 <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017 & jurisdiction!="District of Columbia")
+
+data_to_cluster_1 <- data_to_cluster_1 %>% 
+  mutate(murder_manslaughter_per_pop = murder_manslaughter/state_population,
+         robbery_per_pop = robbery/state_population,
+         agg_assault_per_pop = agg_assault/state_population,
+         burglary_per_pop = burglary/state_population, 
+         larceny_per_pop = larceny/state_population,
+         vehicle_theft_per_pop = vehicle_theft/state_population)
+
+rownames(data_to_cluster_1) <- data_to_cluster_1$jurisdiction
+
+data_to_cluster_1 <- data_to_cluster_1 %>% select(-c(year, jurisdiction, state_population, murder_manslaughter, robbery, agg_assault, burglary, larceny, vehicle_theft))
+
+data_to_cluster_1 <- scale(data_to_cluster_1)
+```
+
+```{r}
+distance <- get_dist(data_to_cluster_1)
+fviz_dist(distance, 
+          lab_size = 6.5,
+          gradient = list(low = viridis(3)[1], mid = viridis(3)[2], high = viridis(3)[3]))
+```
+
+
+```{r}
+res.hc <- eclust(data_to_cluster_1, k=3, "hclust") 
+fviz_dend(res.hc, 
+          rect = TRUE, 
+          k_colors = viridis(5)[2:4],
+          rect_border = "grey",
+          main = "Clustering of states based on number of differenct kinds of crimes",
+          cex = 0.7,
+          ggtheme = theme_minimal()) 
+```
+
+```{r}
+clusters <- data.frame(jurisdiction = rownames(data_to_cluster_1),
+                       cluster = res.hc$cluster)
+
+rownames(clusters) <- NULL
+```
 
 
 
 
--> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
+> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
 
 [^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv.
 [^bjs]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269.
@@ -463,9 +532,10 @@ klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne l
 [^estimated_crime]: "For agencies supplying 3 to 11 months of data, the national UCR Program estimates for the missing data by following a standard estimation procedure using the data provided by the agency. If an agency has supplied less than 3 months of data, the FBI computes estimates by using the known crime figures of similar areas within a state and assigning the same proportion of crime volumes to nonreporting agencies." (cited from https://www.ucrdatatool.gov/faq.cfm).
 [^area]: Sources: https://en.wikipedia.org/wiki/Alaska and https://en.wikipedia.org/wiki/Hawaii.
 [^hartney]: "US Rates of Incarceration: A Global Perspective", Christopher Hartney, Research from the National Council on Crime and Delinquency, November 2006, https://www.nccdglobal.org/sites/default/files/publication_pdf/factsheet-us-incarceration.pdf.
-[bjs_report]: "Correctional Populations in the United States", Danielle Kaeble and Mary Cowhig, Bureau of Justice Statistics, 2016, https://www.bjs.gov/content/pub/pdf/cpus16.pdf.
+[^bjs_report]: "Correctional Populations in the United States", Danielle Kaeble and Mary Cowhig, Bureau of Justice Statistics, 2016, https://www.bjs.gov/content/pub/pdf/cpus16.pdf.
 [^report]: Source: https://www.ed.gov/news/press-releases/report-increases-spending-corrections-far-outpace-education.
 [^travis]: "The Growth of incarceration in the United States. Exploring Causes and Consequences", Jeremy Travis, Bruce Western and Steve Redburn, Committee on Law and Justice, Washington, DC 2014, https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf.
+[^prisoners] Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269
 
 
 
