@@ -20,7 +20,6 @@ library(ggplot2)
 library(plotly)
 library(panelr)
 library(knitr)
-library(funModeling)
 library(spData)
 library(sf)
 library(tmap)
@@ -41,10 +40,7 @@ blablabla
 
 The datasets used in the below analysis were sourced from www.kaggle.com website [^kaggle]. They were created based on several sources including the Bureau of Justice Statistics [^bjs] and FBI Uniform Crime Reporting Program [^fbi]. The National Prisoner Statistics Program conducted by the Bureau of Justice Statistics has collected data on the number of prisoners in state and federal prison facilities since 1926. It is produced annually on national and state level. Data are sourced from the 50 state departments of correction, the Federal Bureau of Prisons, and until 2001, from the District of Columbia. The UCR Program provides statistics on violent and property crimes. Data are collected annually and are available on national, state and city level. For the purposes of our analysis we are using state-level statistics.
 
-Additionally, we individually collected data on federal expenditures for prisons provided by the Bureau of Justice Statistics [^prison_exp] for each state in 2016 which is the lastest data available. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
-
-(...)
-dodać więcej szczegółów o expendirutes
+Additionally, we individually collected data on federal expenditures (direct expenditures; corrections) for correctional institutions provided by the Bureau of Justice Statistics for each state in 2016 which is the lastest data available [^prison_exp]. The correctional institutions include *prisons and penitentiaries, reformatories, jails, houses of correction, other named correctional institutions (correctional farms, workhouses, industrial schools, and training schools), institutions and facilities exclusively for the confinement of the criminally insane, institutions and facilities for the examination, evaluation, classification, and assignment of inmates, facilities for the confinement, treatment, and the rehabilitation of persons with drug or alcohol use disorders, if the institution is administered by a correctional agency*. Later in the analysis we will use them in order to correlate the expendirutes with the occurence of particular crimes.
 
 ## UCR 
 
@@ -233,7 +229,7 @@ names(prison_exp_2016)[names(prison_exp_2016) == "State and type of government"]
 prison_exp_2016$jurisdiction[prison_exp_2016$jurisdiction=="Washington, D.C."] <- "District of Columbia"
 ```
 
-# Background (Ewelina)
+# Background
 
 The United States has the largest prison population and the highest per capita incarceration rate in the world (it is four times the world average) [^hartney]. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016 [^bjs_report]. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period [^report]. 
 
@@ -324,11 +320,6 @@ ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    theme(legend.position = "bottom") +
    scale_fill_viridis_d()
 
-# theme(
-#   legend.title = element_text(color = "blue", size = 14),
-#   legend.text = element_text(color = "red", size = 10)
-#   )
-
 grid.arrange(ggp1, ggp2, ncol=2)
 ```
 
@@ -388,13 +379,13 @@ usa2 <- ggplot(data = us_states_ucr) +
 
 # format main map
 usa_all1 <- usa1 + 
-              ggtitle("Property crimes per population")+
+              ggtitle("Property crimes per population across states")+
               theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
               scale_color_manual(values = heat.colors(6)[2:5])
 
 usa_all2 <- usa2 + 
-              ggtitle("Violent crimes per population")+
+              ggtitle("Violent crimes per population across states")+
                             theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
               scale_color_manual(values = heat.colors(6)[2:5])
@@ -443,7 +434,7 @@ ggp2
 
 # Statistical analysis of the dataset
 
-Having introduced ....
+Having introduced general information about incarceration and 
 
 
 
