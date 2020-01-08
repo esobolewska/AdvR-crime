@@ -640,10 +640,10 @@ bubbles_v <- ggp2 + transition_time(year) +
 
 ## State clustering based on crime rates
 
-```{r, warning=FALSE}
-data_to_cluster_1 <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017)
+```{r warning=FALSE, message=FALSE}
+data_to_cluster <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017 & jurisdiction!="District of Columbia")
 
-data_to_cluster_1 <- data_to_cluster_1 %>% 
+data_to_cluster <- data_to_cluster %>% 
   mutate(murder_manslaughter_per_pop = murder_manslaughter/state_population,
          robbery_per_pop = robbery/state_population,
          agg_assault_per_pop = agg_assault/state_population,
@@ -651,34 +651,37 @@ data_to_cluster_1 <- data_to_cluster_1 %>%
          larceny_per_pop = larceny/state_population,
          vehicle_theft_per_pop = vehicle_theft/state_population)
 
-rownames(data_to_cluster_1) <- data_to_cluster_1$jurisdiction
+rownames(data_to_cluster) <- data_to_cluster$jurisdiction
 
-data_to_cluster_1 <- data_to_cluster_1 %>% select(-c(year, jurisdiction, state_population, murder_manslaughter, robbery, agg_assault, burglary, larceny, vehicle_theft))
+data_to_cluster <- data_to_cluster %>% select(-c(year, jurisdiction, state_population, murder_manslaughter, robbery, agg_assault, burglary, larceny, vehicle_theft))
 
-data_to_cluster_1 <- scale(data_to_cluster_1)
+data_to_cluster <- scale(data_to_cluster)
 ```
 
-```{r}
-library(heatmaply)
+Below we can see visualised dissimilarity matrix, which show distant observations in yellow and close ones in blue We can easily notice groups of states with similar trends in criminality and also those which differentiate the most. The analysis was conducted based on 
+
+```{r warning=FALSE, message=FALSE, fig.height=15}
 distance <- get_dist(data_to_cluster_1)
 distance <- as.matrix(distance)
 heatmaply(distance,  
           cellnote_size = 8, fontsize_row = 6, fontsize_col = 7,
           Rowv = FALSE, Colv = FALSE,
-          main = 'Clustering of states based on number of differenct kinds of crimes')
+          main = 'Dissimilarity matrix of states')
 ```
 
+According to the result of dissimilarity matrix, we decided to cluster states hierarchically, assuming three clusters. The algorithm 
 
-```{r}
-res.hc <- eclust(data_to_cluster_1, k=3, "hclust") 
+```{r fig.height=7, warning=FALSE, message=FALSE}
+res.hc <- eclust(data_to_cluster, k=3, "hclust") 
 fviz_dend(res.hc, 
           rect = TRUE, 
-          k_colors = viridis(5)[2:4],
-          rect_border = "grey",
-          main = "Clustering of states based on number of differenct kinds of crimes",
+          k_colors = viridis(3),
+          rect_border = viridis(8)[5],
+          main = "Clustering of states based on number of different kinds of crimes (3 clusters)",
           cex = 0.7,
           ggtheme = theme_minimal()) 
 ```
+
 
 ```{r}
 clusters <- data.frame(jurisdiction = rownames(data_to_cluster_1),
