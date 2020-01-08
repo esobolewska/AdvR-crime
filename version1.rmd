@@ -26,11 +26,20 @@ library(tmap)
 library(kableExtra)
 library(formattable)
 library(factoextra)
+library("gganimate")
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
     kable_styling(bootstrap_options = c("hover", "condensed", "responsive"), full_width = F)
 }
+
+#extract legend
+#https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
 ```
 
 # Introduction
@@ -243,12 +252,144 @@ us_states_info <- rbind(us_states_info, additional_states)
 
 ## District of Columbia
 
-In the prison dataset, District of Columbia is named as Federal and in prison_exp_2016 is named as Washington, D.C. In order to unify the names, we ranamed both to District of Columbia. We also renamed the variable State and type of government to jurisdiction for easier further calculations. 
+The district of Columbia is named as a jurisdiction and a separate row in the prison_exp and ucr datasets, however they do not appear in prison nor private_prisons datasets.
 
 ```{r warning=FALSE}
-setdiff(ucr$jurisdiction %>% unique(), prison$jurisdiction %>% unique())
-setdiff(ucr$jurisdiction %>% unique(), private_prisons$state %>% unique())
+cat("State that is in ucr dataset but does not appear in prison dataset:\n",
+    setdiff(ucr$jurisdiction %>% unique(), prison$jurisdiction %>% unique()))
+cat("State that is in ucr dataset but does not appear in private_prisons dataset:\n",
+    setdiff(ucr$jurisdiction %>% unique(), private_prisons$state %>% unique()))
 ```
+
+The district of Columbia is also problematic for our calculations because of it's unique area, population, urbanisation and overall crime rates compared to other states. The comparison between the average values for the District of Columbia and values for other states are presented in the table below. It is visible right away that the values for area of District of Columbia is 0.1% of the median value for other states. When calculating the rate of crime per square km, regardless of type, the numbers turn out significantly larger. As for population, the value is still significantly smaller however measuring crime per capita is much more accurate. The plots below show crimes in the District of Columbia as compared to other states. The nominal values of both crimes are rather lower, toward the end of the list of states. Values for both types of crimes per area, as suspected, are drastically higher for Washington DC because its urbanized area consisting of the country capital. However even when taking into account the values divided by the population which seems to be a more rational approach, it shows that the District of Columbia has the highest crime rates per capita. The difference is even larger for violent crimes. This isn't a surprising discovery, since Washington DC has been fighting high crime rates, especially homicide since the crack epidemic in the 1980s. It has gained a nickname of the "murder capital" despite being the headquarters to many agencies. [^nyt] The aftermath can still be seen today and bearing in mind the size of the crime rate, we decide to exclude the district from all further analyses. This decision is caused by the fact the preserving Washington DC will prevent us from proper conclusions due to the aforementioned gap between areas.
+
+```{r}
+# population, violent_crime, property_crime
+state.df.1 <- ucr %>% filter(jurisdiction!="District of Columbia") %>% 
+                    summarise(Population = median(state_population), 
+                              `Violent crimes` = median(violent_crime_total), 
+                              `Property crimes` = median(property_crime_total)) %>% t()
+dc.df.1 <- ucr %>% filter(jurisdiction=="District of Columbia") %>% 
+                    summarise(population = median(state_population), 
+                              `Violent crimes` = median(violent_crime_total), 
+                              `Property crimes` = median(property_crime_total)) %>% t()
+
+# area
+state.df.2 <- us_states_info %>% filter(jurisdiction!="District of Columbia") %>% summarise(states = median(area_km2))
+dc.df.2 <- us_states_info %>% filter(jurisdiction=="District of Columbia") %>% summarise(dc = area_km2)
+
+#combined
+dc.df <- rbind(data.frame(row.names=c("Area"), round(state.df.2,0), dc.df.2),
+               data.frame("states"=round(state.df.1,0), "dc"=round(dc.df.1,0)))
+dc.df$pct <- percent(dc.df$dc/dc.df$states)
+colnames(dc.df) = c("Median values for other states", "Values for District of Columbia", "DC/avg states in pct")
+kable_f(dc.df)
+```
+
+
+```{r warning=FALSE, message=FALSE, fig.height=7}
+library(ggrepel)
+plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
+                      group_by(jurisdiction) %>% 
+                      summarise(property_crime_total = mean(property_crime_total),
+                                violent_crime_total = mean(violent_crime_total),
+                                area_km2 = mean(area_km2),
+                                state_population = mean(state_population))
+
+plot.data$highlight <- ifelse(plot.data$jurisdiction=="District of Columbia", 1, 0)
+plot.data <- plot.data %>% mutate(property_per_area = property_crime_total/area_km2,
+                                  property_per_pop = property_crime_total/state_population,
+                                  violent_per_area = violent_crime_total/area_km2,
+                                  violent_per_pop = violent_crime_total/state_population)
+
+ggp1 <- ggplot() + 
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_crime_total), 
+                               y = property_crime_total, 
+                               fill = as.factor(highlight)), 
+           stat="identity") + 
+  scale_fill_discrete(name="Jurisdiction", 
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "bottom")
+
+ggp2 <- ggplot() + 
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_area), 
+                               y = property_per_area, 
+                               fill = as.factor(highlight)), 
+           stat="identity") + 
+  scale_fill_discrete(name="Jurisdiction", 
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")  
+
+ggp3 <- ggplot() + 
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_pop), 
+                               y = property_per_pop, 
+                               fill = as.factor(highlight)), 
+           stat="identity") + 
+  scale_fill_discrete(name="Jurisdiction", 
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")
+
+ggp4 <- ggplot() +
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_crime_total),
+                               y = violent_crime_total,
+                               fill = as.factor(highlight)),
+           stat="identity") +
+  scale_fill_discrete(name="Jurisdiction",
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")  
+
+ggp5 <- ggplot() +
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area),
+                               y = violent_per_area,
+                               fill = as.factor(highlight)),
+           stat="identity") +
+  scale_fill_discrete(name="Jurisdiction",
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")  
+
+ggp6 <- ggplot() +
+  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop),
+                               y = violent_per_pop,
+                               fill = as.factor(highlight)),
+           stat="identity") +
+  scale_fill_discrete(name="Jurisdiction",
+                      labels = c("other", "District of Columbia")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none") 
+
+mylegend<-g_legend(ggp1)
+
+grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
+                         ggp2 + theme(legend.position="none"),
+                         ggp3 + theme(legend.position="none"),
+                         ggp4 + theme(legend.position="none"),
+                         ggp5 + theme(legend.position="none"),
+                         ggp6 + theme(legend.position="none"),
+                         nrow=2), mylegend, nrow=2, heights=c(10, 1))
+```
+
+```{r}
+ucr <- ucr %>% filter(jurisdiction!="District of Columbia")
+prison_exp <- prison_exp %>% filter(state!="District of Columbia")
+```
+
 
 # Background
 
@@ -276,53 +417,13 @@ ggplotly(p, tooltip = "text") %>%
 
 ### Average historical violent crimes vs. property crimes per population across states
 
-The following analyses exclude District of Columbia due to its specificity. Because we analysed the number of crimes per area and population, the value for that district would be significantly higher preventing us from proper conclusions. Below we can see plots that justify our decision.
-
-```{r warning=FALSE, message=FALSE, fig.height=9}
-library(ggrepel)
-plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
-                      group_by(jurisdiction) %>% 
-                      summarise(violent_crime_total = mean(violent_crime_total),
-                                area_km2 = mean(area_km2),
-                                state_population = mean(state_population))
-
-plot.data$highlight <- ifelse(plot.data$jurisdiction=="District of Columbia", 1, 0)
-plot.data <- plot.data %>% mutate(violent_per_area = violent_crime_total/area_km2,
-                                  violent_per_pop = violent_crime_total/state_population)
-
-ggp1 <- ggplot() + 
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area), 
-                               y = violent_per_area, 
-                               fill = as.factor(highlight)), 
-           stat="identity") + 
-  scale_fill_discrete(name="Jurisdiction", 
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle=90),
-        legend.position = "bottom") 
-
-ggp2 <- ggplot() + 
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop), 
-                               y = violent_per_pop, 
-                               fill = as.factor(highlight)), 
-           stat="identity") + 
-  scale_fill_discrete(name="Jurisdiction", 
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle=90),
-        legend.position = "bottom") 
-
-grid.arrange(ggp1, ggp2)
-```
-
 The proportion of violent and property crimes is similar across regions, where violent crimes consist of 10%-20% of the total number of crimes. When comparing the proportions between regions, South has the highest ratio of violent crimes, while Hawaii and Alaska (remote region) have the lowest ratio. It is important to state that the remote region was created artificially and consist of only two drastically different states. This is shown in further analysis that Hawaii has one of the lowest proportions of violent per property crimes while Alaska has one of the highest.
 
 On the right plot below can be seen the average regional values with the maintained relation between regions. The South region has the highest number of crimes regardless of its significant area. 
 
-```{r, fig.width = 6, warning=FALSE, message=FALSE}
+```{r, fig.width = 7, warning=FALSE, message=FALSE}
 library(reshape2)
 plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
-          filter(jurisdiction!="District of Columbia") %>% 
           group_by(region) %>% 
           summarise(
             violent_crime_total = mean(violent_crime_total/area_km2),
@@ -332,26 +433,27 @@ plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>%
 ggp1 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "fill") +
    theme_minimal() + 
-   theme(legend.position = "bottom") +
+   theme(legend.position = "bottom", axis.title.x = element_blank()) +
    scale_fill_viridis_d()
 
 ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "dodge") +
-   theme_minimal() + 
-   theme(legend.position = "bottom") +
+   theme_minimal() +
+   theme(axis.title.x = element_blank()) +
    scale_fill_viridis_d()
 
-grid.arrange(ggp1, ggp2, ncol=2)
+mylegend<-g_legend(ggp1)
+
+grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
+                         ggp2 + theme(legend.position="none"),
+                         nrow=1), mylegend, nrow=2, heights=c(10, 1))
 ```
 
 Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes. In case of property crimes there is a visible division aligned with the historical North and South  during the Civil War. In the South there are more property crimes than in Northeast. However when looking at the north and the south in a geographical sense (dividing country horizontally), there is a difference for both types of crimes, once again with higher rate in the south. What is more, when comparing maps we can see a difference in the Northeast region concerning New York, Pennsylvania, New Jersey and Massachusetts. For all of these states, we see that there are more violent than property crimes per population. One more state in which the difference can also be seen is a southern state - Idaho.
 
-(...)
-
 ```{r warning=FALSE, message=FALSE}
 #create df with mean values across years per state from ucr
 ucr_grouped <- ucr %>% 
-                  filter(jurisdiction!="District of Columbia") %>% 
                   group_by(jurisdiction) %>% 
                   summarise(violent_crime_total = mean(violent_crime_total),
                             property_crime_total = mean(property_crime_total))
@@ -457,27 +559,89 @@ ggp2
 
 Having introduced general information about incarceration and crimes, we move to a more detailed analysis of our data and examining the relationships between features.
 
-The first dependency we would like to find is the relation between the number of prisoners currently incarcerated and the number of crimes over time. Studies show that the increase of the rate of imprisonment could decrease the number of crimes as a result of isolation of sentenced individuals and their resocialization or demotivating factor for potential criminals. The magnitude of the change cannot be easily predicted, but some studies claim that along with a higher incarceration rate we can observe the diminishing marginal number of crimes [^travis]. 
+The first dependency we would like to find is the relation between the number of prisoners currently incarcerated and the number of crimes over time. Studies show that the increase of the rate of imprisonment could decrease the number of crimes as a result of isolation of sentenced individuals and their resocialization or demotivating factor for potential criminals. The magnitude of the change cannot be easily predicted, but some studies claim that along with a higher incarceration rate we can observe the diminishing marginal number of crimes [^travis]. Here we will also be comparing the number of prisoners and crimes in different states.
 
-> jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
-> czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
-> czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
+The second dependency we want to reveal is the impact of investment on imprisonment on public safety quantified by the number of different kinds of crimes. We want to see if higher expenditure per prisoner improves public safety by taking into account the number of prisoners per state incarcerated in private prisons.
 
-The second dependency we want to reveal is the impact of investment on imprisonment on public safety quantified by the number of different kinds of crimes. 
+Furthermorewe will be clustering the states according to crime rates for different types of crimes to check if the results compare geographically.
 
-> Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
+## Prisons and crime
+
+> total
+> bubble plot?
+
+```{r, message=FALSE, warning=FALSE}
+ggp1 <- ggplot(left_join(ucr, us_states_info, by="jurisdiction") %>% mutate(year=as.integer(year)),
+               aes(x = violent_crime_total, 
+                   y = state_population, 
+                   colour = as.factor(jurisdiction),
+                   size =area_km2,
+                   frame=year)) +
+  geom_point(show.legend = FALSE, alpha = 0.5) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "Violent crimes total", y = "State population")
+
+ggp2 <- ggplot(left_join(ucr, us_states_info, by="jurisdiction") %>% mutate(year=as.integer(year)),
+               aes(x = property_crime_total, 
+                   y = state_population, 
+                   colour = as.factor(jurisdiction),
+                   size =area_km2,
+                   frame=year)) +
+  geom_point(show.legend = FALSE, alpha = 0.5) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "Property crimes total", y = "State population")
+
+bubbles_p <- ggp1 + transition_time(year) +
+  labs(title = "Year: {2000+frame_time}", range=c(2001L,2017L))
+
+bubbles_v <- ggp2 + transition_time(year) +
+  labs(title = "Year: {2000+frame_time}", range=c(2001L,2017L))
+
+# anim_save("bubbles_violent.gif", bubbles_v)
+# anim_save("bubbles_property.gif", bubbles_p)
+```
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+  .col3 {
+    columns: 3 100px;
+    -webkit-columns: 3 100px;
+    -moz-columns: 3 100px;
+  }
+</style>
+
+
+<div class="col2">
+
+![](bubbles_violent.gif)
+
+![](bubbles_property.gif)
+
+</div>
 
 
 
-> jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
+> per state
+> map animated
 
 
+## Investments into prisons and the rate of crimes
 
-> klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
+
+## Number of prisoners and crimes across states
 
 
-```{r}
-data_to_cluster_1 <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017 & jurisdiction!="District of Columbia")
+## State clustering based on crime rates
+
+```{r, warning=FALSE}
+data_to_cluster_1 <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017)
 
 data_to_cluster_1 <- data_to_cluster_1 %>% 
   mutate(murder_manslaughter_per_pop = murder_manslaughter/state_population,
@@ -495,10 +659,13 @@ data_to_cluster_1 <- scale(data_to_cluster_1)
 ```
 
 ```{r}
+library(heatmaply)
 distance <- get_dist(data_to_cluster_1)
-fviz_dist(distance, 
-          lab_size = 6.5,
-          gradient = list(low = viridis(3)[1], mid = viridis(3)[2], high = viridis(3)[3]))
+distance <- as.matrix(distance)
+heatmaply(distance,  
+          cellnote_size = 8, fontsize_row = 6, fontsize_col = 7,
+          Rowv = FALSE, Colv = FALSE,
+          main = 'Clustering of states based on number of differenct kinds of crimes')
 ```
 
 
@@ -522,9 +689,6 @@ rownames(clusters) <- NULL
 
 
 
-
-> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
-
 [^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv.
 [^bjs]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269.
 [^fbi]: Source: https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm.
@@ -536,6 +700,7 @@ rownames(clusters) <- NULL
 [^report]: Source: https://www.ed.gov/news/press-releases/report-increases-spending-corrections-far-outpace-education.
 [^travis]: "The Growth of incarceration in the United States. Exploring Causes and Consequences", Jeremy Travis, Bruce Western and Steve Redburn, Committee on Law and Justice, Washington, DC 2014, https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf.
 [^prisoners] Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269
+[^nyt] Source: https://www.nytimes.com/2006/07/13/us/13deecee.html?_r=1&n=Top%2FReference%2FTimes%20Topics%2FPeople%2FW%2FWilliams%2C%20Anthony%20A.&mtrref=en.wikipedia.org&assetType=REGIWALL
 
 
 
@@ -580,3 +745,11 @@ ggp2
 # }
 ```
 
+> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
+
+> jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
+> czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
+> czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
+> Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
+> jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
+> klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
