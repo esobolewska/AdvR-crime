@@ -11,6 +11,7 @@ output:
     code_folding: hide
 
 ---
+
   
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(readr)
@@ -26,21 +27,59 @@ library(tmap)
 library(kableExtra)
 library(formattable)
 library(factoextra)
-library("gganimate")
+library(heatmaply)
+library(gganimate)
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
     kable_styling(bootstrap_options = c("hover", "condensed", "responsive"), full_width = F)
 }
 
-#extract legend
-#https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
+# extract legend
+# https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
 g_legend<-function(a.gplot){
   tmp <- ggplot_gtable(ggplot_build(a.gplot))
   leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
   legend <- tmp$grobs[[leg]]
   return(legend)}
 ```
+
+<style>
+  body {
+  text-align: justify;
+  }
+  .column {
+  float: left;
+  width: 33%;
+  }
+  .row:after {
+  content: "";
+  display: table;
+  clear: both;
+  }
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+  .col3 {
+    columns: 3 100px;
+    -webkit-columns: 3 100px;
+    -moz-columns: 3 100px;
+  }
+  h1 { /* Header 1 */
+    font-size: 24px;
+  }
+  h2 { /* Header 2 */
+      font-size: 20px;
+  }
+  h3 { /* Header 3 */
+    font-size: 16px;
+  }
+  h4 { /* Header 4 */
+    font-size: 14px;
+  }
+</style>
 
 # Introduction
 
@@ -83,7 +122,7 @@ sapply(ucr, function(x) sum(is.na(x)))
 
 As you can see on plot on the left below, in the last two years, 2016 and 2017, there is an additional obervation ie. jurisdiction. Looking at the plot on the right, New York is missing in one year, Puerto Rico is visible in only 3 years. District of Columbia is sometimes renamed as DC, but overall it sums up to all 17 years.
 
-```{r, fig.width = 10, fig.asp = .25, message=FALSE, warning=FALSE}
+```{r, fig.width = 10, fig.asp = .25, message=FALSE, warning=FALSE, fig.align='center'}
 library(viridis)
 plot.data1 = ucr %>% group_by(year) %>% count()
 ggp1 = ggplot(data = plot.data1, aes(x=year, y=n, fill=year)) + 
@@ -149,7 +188,7 @@ colnames(ucr)
 
 On the plots below are presented distributions of number of different types of crimes. They are mainly concentrated near 0. There are however a few spikes visible especially in case of robbery, burglary and larceny indicating outliers. In case of larceny, we can also observe that it has two peaks that we can attribute to multiple modes.
 
-```{r, fig.width = 9, fig.asp = 1.1, message=FALSE, warning=FALSE}
+```{r, fig.width = 9, fig.asp = 1.1, message=FALSE, warning=FALSE, fig.align='center'}
 pl <- vector("list", length = ncol(ucr[,c(5:13)])-1)
 colors <- viridis(8)
 for(ii in seq_along(pl)) {
@@ -288,7 +327,7 @@ kable_f(dc.df)
 ```
 
 
-```{r warning=FALSE, message=FALSE, fig.height=7}
+```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 library(ggrepel)
 plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
                       group_by(jurisdiction) %>% 
@@ -394,11 +433,11 @@ prison_exp <- prison_exp %>% filter(jurisdiction!="District of Columbia")
 
 # Background
 
-The United States has the largest prison population and the highest per capita incarceration rate in the world (it is four times the world average) [^hartney]. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016 [^bjs_report]. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during this time period [^report]. 
+The United States has the largest prison population and the highest per capita incarceration rate in the world (it is four times the world average) [^hartney]. According to 2018 report of the Bureau of Justice Statistics (BJS), nearly 2.2 million adults were imprisoned in America at the end of 2016 [^bjs_report]. That means for every 100,000 people living in the US, about 655 of them were held in prisons and jails. Because of the huge scale of prisoners in the country, also the expenditures on prisons are the highest. According to recent surveys regarding the United States expenditures, spendings on incarceration have increased about three times as fast as spendings on elementary and secondary education during the same time period [^report]. 
 
 According to Travis, Western and Redburn [^travis] from 1973 to 2009, the state and federal prison populations had a stable growth from about 200,000 to 1.5 million. It started declining slightly in the following years. This can be also observed on below plot presenting the trend of the number of prisoners during period 2001-2016. We can see that the number od prisoners grows from 2001 to 2009 and starts to decrease in the next years. 
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, fig.height=4, fig.align='center'}
 prison_year <- prison %>% group_by(year) %>% summarise(value = sum(prison))
 
 p <- ggplot(data = prison_year, aes(x = year, y = value/1000000, color = year,  
@@ -418,11 +457,11 @@ ggplotly(p, tooltip = "text") %>%
 
 ### Average historical violent crimes vs. property crimes per population across states
 
-The proportion of violent and property crimes is similar across regions, where violent crimes consist of 10%-20% of the total number of crimes. When comparing the proportions between regions, South has the highest ratio of violent crimes, while Hawaii and Alaska (remote region) have the lowest ratio. It is important to state that the remote region was created artificially and consist of only two drastically different states. This is shown in further analysis that Hawaii has one of the lowest proportions of violent per property crimes while Alaska has one of the highest.
+The proportion of violent and property crimes is similar across regions, where violent crimes consist of 10%-20% of the total number of crimes. When comparing the proportions between regions, South has the highest ratio of violent crimes, while Hawaii and Alaska (remote region) have the lowest ratio. It is important to state that the remote region was created artificially and consist of only two drastically different states. 
 
 On the right plot below can be seen the average regional values with the maintained relation between regions. The South region has the highest number of crimes regardless of its significant area. 
 
-```{r, fig.width = 7, warning=FALSE, message=FALSE}
+```{r, fig.height = 3, fig.width = 5, warning=FALSE, message=FALSE, fig.align='center'}
 library(reshape2)
 plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
           group_by(region) %>% 
@@ -545,13 +584,13 @@ ggp2 <- usa_all2 +
 ### {.tabset .tabset-fade .tabset-pills}
 #### Property crimes per population
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 ggp1
 ```
 
 #### Violent crimes per population
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 ggp2
 ```
 
@@ -568,56 +607,58 @@ Furthermore we will be clustering the states according to crime rates for differ
 
 ## The relationship between incarceration and crime rates
 
-> total
-> bubble plot?
+The first analysis concerns examining the relationship between incarceration and crime rates. Below we can see two bubble plots, one showing the relationship between prisoners per state population and the rate of violent crimes per capita (state population) and the second one the rate of property crimes per capita. The size of the bubbles represent the state population. 
 
 ```{r, message=FALSE, warning=FALSE}
-ggp1 <- ggplot(left_join(ucr, us_states_info, by="jurisdiction") %>% mutate(year=as.integer(year)),
-               aes(x = violent_crime_total, 
-                   y = state_population, 
+prison_ucr = left_join(prison, ucr, by=c("jurisdiction", "year"))
+
+prison_ucr$violent_crime_total_per_pop <- prison_ucr$violent_crime_total/prison_ucr$state_population
+prison_ucr$property_crime_total_per_pop <- prison_ucr$property_crime_total/prison_ucr$state_population
+prison_ucr$prisoners_per_pop <- prison_ucr$prison/prison_ucr$state_population
+
+ggp1 <- ggplot(prison_ucr,
+               aes(x = prisoners_per_pop, 
+                   y = violent_crime_total_per_pop,
                    colour = as.factor(jurisdiction),
-                   size =area_km2,
-                   frame=year)) +
+                   size = state_population,
+                   frame = as.integer(year),
+                   label = jurisdiction)) +
   geom_point(show.legend = FALSE, alpha = 0.5) +
+  geom_text(size=2, hjust=-0.3, vjust=-0.3, color="black") +
   scale_color_viridis_d() +
   scale_size(range = c(2, 12)) +
-  scale_x_log10() +
-  labs(x = "Violent crimes total", y = "State population")
+  labs(x = "Number of prisoners per capita", y = "Violent crimes total per capita") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-ggp2 <- ggplot(left_join(ucr, us_states_info, by="jurisdiction") %>% mutate(year=as.integer(year)),
-               aes(x = property_crime_total, 
-                   y = state_population, 
+ggp2 <- ggplot(prison_ucr,
+               aes(x = prisoners_per_pop, 
+                   y = property_crime_total_per_pop,
                    colour = as.factor(jurisdiction),
-                   size =area_km2,
-                   frame=year)) +
+                   size = state_population,
+                   frame = as.integer(year),
+                   label = jurisdiction)) +
   geom_point(show.legend = FALSE, alpha = 0.5) +
+  geom_text(size=2, hjust=-0.3, vjust=-0.3, color="black") +
   scale_color_viridis_d() +
   scale_size(range = c(2, 12)) +
-  scale_x_log10() +
-  labs(x = "Property crimes total", y = "State population")
+  labs(x = "Number of prisoners", y = "Property crimes total") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-bubbles_p <- ggp1 + transition_time(year) +
-  labs(title = "Year: {2000+frame_time}", range=c(2001L,2017L))
+bubbles_v <- ggp1 + transition_time(as.integer(year)) +
+  labs(title = "Year: {frame_time}", range=c(2001L,2016L))
 
-bubbles_v <- ggp2 + transition_time(year) +
-  labs(title = "Year: {2000+frame_time}", range=c(2001L,2017L))
+bubbles_p <- ggp2 + transition_time(as.integer(year)) +
+  labs(title = "Year: {frame_time}", range=c(2001L, 2016L))
 
 # anim_save("bubbles_violent.gif", bubbles_v)
 # anim_save("bubbles_property.gif", bubbles_p)
 ```
-<style>
-  .col2 {
-    columns: 2 200px;         /* number of columns and width in pixels*/
-    -webkit-columns: 2 200px; /* chrome, safari */
-    -moz-columns: 2 200px;    /* firefox */
-  }
-  .col3 {
-    columns: 3 100px;
-    -webkit-columns: 3 100px;
-    -moz-columns: 3 100px;
-  }
-</style>
 
+Starting with the plot related to violent crimes, we can notice the general positive relation between crime and incarceration rates. The relation is intuitive since naturally states with higher crime rates will have more prisoners. We can however notice in the plot the relationships on state level over time. There are states like Florida and Arizona that with the increase of prisoners per capita have a declining crime rate. Additionally there are other states like Alaska, Nevada, Arkansas, Louisiana, South Dakota and Montana that show an opposite tendency with crime rates and number of prisoners increasing simultaneously. There is one more event that is visible in 2009 - the overall decrease in the number of prisoners. This is the tendency we have already noticed in the background section of this analysis.
+
+As for property crimes, we can see in the right plot, there is an overall declining tendency. This can probably be attributed to the enriching society or plunge in confidence regarding law enforcement causing citizens to not report small crimes. An additional cause can be the transfer of crimes for financial gain online. This type of crime is not included in the ucr dataset and thus we can notice only the decline [^online_crime]. When analysing states individually over time, it is difficult to explicitly notice a relation between crime and incarceration rates.
 
 <div class="col2">
 
@@ -627,13 +668,11 @@ bubbles_v <- ggp2 + transition_time(year) +
 
 </div>
 
+Additionally we conducted analysis of percentage change of violent crime rates, property crime rates and imprisonment rates between 2001 and 2016. The first thing that you can notice are North and South Dakotas that are distinguished from other states by the huge increase in violent crimes. Accoring to ucr data the most rapid change occured between 2005 and 2006. In North Dakota this aligns in time with the North Dakota oil boom causing a wave of new workers to larger cities [^north_dakota]. Besides the oil boom, in both North and South Dakotas there was spread of methamphetamine resulting in aggravated assaults and drug related armed attacks. It is difficult to find patterns according to geographical location of the states. 
 
+In case of property crime rates, we can see that for all states the change is negative. As mentioned before this can be attributed to enriching of the society, not reporting crimes to law enforcement and transfer of crimes online.
 
-> per state
-> map animated
-
-
-
+The last plot presents incarceration rates. The state which is visibly separate from the others is West Virginia with over 70% change between 2001 and 2016. It was difficult to connect it with any particular event, however it is worth noting that West Virginia has also one of the highest incarceration rate in the US.  
 
 ```{r warning=FALSE, message=FALSE, fig.height=7}
 # preparing data
@@ -669,19 +708,19 @@ final_data <- left_join(v1, v2, by = "jurisdiction")
 # percentage change
 final_data_plot <- final_data %>% 
   mutate(
-    pct_change_violent = (violent_crime_total_rate_2016-violent_crime_total_rate_2001)/abs(violent_crime_total_rate_2001)*100,
-    pct_change_property = (property_crime_total_rate_2016-property_crime_total_rate_2001)/abs(property_crime_total_rate_2001)*100,
-    pct_change_imprisonment = (imprisonment_rate_2016-imprisonment_rate_2001)/abs(imprisonment_rate_2001)*100) %>%
+    pct_change_violent = (violent_crime_total_rate_2016-violent_crime_total_rate_2001)/(violent_crime_total_rate_2001)*100,
+    pct_change_property = (property_crime_total_rate_2016-property_crime_total_rate_2001)/(property_crime_total_rate_2001)*100,
+    pct_change_imprisonment = (imprisonment_rate_2016-imprisonment_rate_2001)/(imprisonment_rate_2001)*100) %>%
   select(jurisdiction, pct_change_violent, pct_change_property, pct_change_imprisonment)
 
 ggp_violent <- ggplot(data = final_data_plot, 
-                      aes(x = jurisdiction, 
+                      aes(x = reorder(jurisdiction, -pct_change_violent), 
                           y = pct_change_violent, 
-                          fill=as.factor(jurisdiction), 
-                          text = paste("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change:", round(pct_change_violent, 2)))) +
+                          fill = as.factor(pct_change_violent), 
+                          text = paste0("Jurisdiction: ", jurisdiction,
+                                       "<br>Percentage change: ", round(pct_change_violent, 2), '%'))) +
   geom_bar(stat='identity', position="dodge") +
-  scale_y_continuous(limits=c(-50, 200), breaks=seq(-50, 200, 50), labels=percent) +
+  scale_y_continuous(limits=c(-50, 220), breaks=seq(-50, 220, 50), labels=percent) +
   coord_flip() +
   labs(title = "Percent change in state violent crime rates, 2001-2016", 
        x = "Jurisdiction", 
@@ -692,11 +731,11 @@ ggp_violent <- ggplot(data = final_data_plot,
 
 
 ggp_property <- ggplot(data = final_data_plot,
-                       aes(x = jurisdiction,
+                       aes(x = reorder(jurisdiction, pct_change_property),
                            y = pct_change_property,
-                           fill=as.factor(jurisdiction),
-                           text = paste("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change:", round(pct_change_violent, 2)))) +
+                           fill = as.factor(pct_change_property),
+                           text = paste0("Jurisdiction: ", jurisdiction,
+                                       "<br>Percentage change: ", round(pct_change_property, 2), '%'))) +
   geom_bar(stat='identity') +
   scale_y_continuous(limits=c(-50, 10), breaks=seq(-50, 10, 10), labels=percent) +
   coord_flip() +
@@ -708,49 +747,48 @@ ggp_property <- ggplot(data = final_data_plot,
   theme(legend.position = "none", axis.text=element_text(size=6))
 
 ggp_imprisonment <- ggplot(data = final_data_plot,
-                       aes(x = jurisdiction,
+                       aes(x = reorder(jurisdiction, -pct_change_imprisonment),
                            y = pct_change_imprisonment,
-                           fill=as.factor(jurisdiction),
-                           text = paste("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change:", round(pct_change_imprisonment, 2)))) +
+                           fill = as.factor(pct_change_imprisonment),
+                           text = paste0("Jurisdiction: ", jurisdiction,
+                                       "<br>Percentage change: ", round(pct_change_imprisonment, 2), '%'))) +
   geom_bar(stat='identity') +
-  scale_y_continuous(limits=c(-40, 40), breaks=seq(-40, 40, 10), labels=percent) +
   coord_flip() +
   labs(title = "Percent change in state imprisonment rates, 2001-2016",
        x = "Jurisdiction",
        y = "Percentage change") +
   scale_fill_viridis_d() +
   theme_minimal() +
+  scale_y_continuous(limits=c(-40, 80), breaks=seq(-40, 80, 10), labels=percent) +
   theme(legend.position = "none", axis.text=element_text(size=6))
   
 ```
 
 
 ### {.tabset .tabset-fade .tabset-pills}
-#### Percent change in state violent crime rates, 2001-2016
+#### Hide plots
+#### Violent crime rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7}
+```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
 ggplotly(ggp_violent, tooltip = "text")
 ```
 
-### {.tabset .tabset-fade .tabset-pills}
-#### Percent change in state property crime rates, 2001-2016
+#### Property crime rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7}
+```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
 ggplotly(ggp_property, tooltip = "text") 
 ```
 
-### {.tabset .tabset-fade .tabset-pills}
-#### Percent change in state imprisonment rates, 2001-2016
+#### Imprisonment rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7}
+```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
 ggplotly(ggp_imprisonment, tooltip = "text") 
 ```
 
 
 ## The relationship between investments into prisons and crime rates
 
-In order to find the relationship between investments into prisons and crime rates, we calculated the value of expenditures per prisoner and the number of crime accidents per state population. 
+In order to find the relationship between investments into prisons and crime rates, we calculated the value of expenditures per prisoner and the number of crime cases per state population. It is difficult to explicitly state what is the pattern between these two variables in time and across states. We cannot define if expenditures on prisons influence public safety and this is perhaps why other forms of rehabilitation should be considered.
 
 ![](scatterPlot.gif)
 
@@ -767,7 +805,7 @@ prison_exp_ext2$property_crime_per_pop <- (prison_exp_ext2$property_crime_total)
 ```
 
 
-```{r warning=FALSE, message=TRUE, fig.height=7}
+```{r warning=FALSE, message=TRUE, fig.height=7, fig.align='center'}
 library(grid)
 library(gridExtra)
 
@@ -786,7 +824,7 @@ scatterPlot <- ggplot(prison_exp_ext2,
 scatterPlot <- scatterPlot + 
   transition_time(as.integer(year)) 
 
-anim_save("scatterPlot.gif", scatterPlot)
+# anim_save("scatterPlot.gif", scatterPlot)
 
 # Marginal density plot of exp_per_prisoner (top panel)
 xdensity <- ggplot(prison_exp_ext2, 
@@ -820,8 +858,8 @@ ydensity <- ggplot(prison_exp_ext2,
 #    axis.ticks = element_blank()
 # )
 
-my_legend_scatter <- g_legend(scatterPlot)
-my_legend_density <- g_legend(xdensity)
+# my_legend_scatter <- g_legend(scatterPlot)
+# my_legend_density <- g_legend(xdensity)
 
 # grid.arrange(arrangeGrob(xdensity + theme(legend.position = "none"),
 #                          blankPlot, 
@@ -834,54 +872,46 @@ my_legend_density <- g_legend(xdensity)
 #              nrow=2, heights=c(10, 1)) 
 ```
 
-![](scatterPlot.gif)
-
 
 ```{r}
-grid.arrange(my_legend_scatter, my_legend_density, ncol=2, 
-             heights=c(10, 1))
+# grid.arrange(my_legend_scatter, my_legend_density, ncol=2, 
+#              heights=c(10, 1))
 ```
 
 
 ```{r warning=FALSE, message=TRUE, fig.height=7}
 # scatter plot 
-scatterPlot <- ggplot(prison_exp_ext2, 
-                      aes(exp_per_prisoner, property_crime_per_pop, color=region, frame=as.integer(year))) + 
-  geom_point() + 
-  scale_color_manual(values = viridis(5)) + 
-  theme_minimal() +
-  labs(x = "Expenditures on prisons per prisoner", y = "Property crimes per population") +
-  theme(legend.position = "bottom")
-
-scatterPlot <- scatterPlot + 
-  transition_time(as.integer(year)) 
-
-anim_save("scatterPlot.gif", scatterPlot)
+# scatterPlot <- ggplot(prison_exp_ext2, 
+#                       aes(exp_per_prisoner, property_crime_per_pop, color=region, frame=as.integer(year))) + 
+#   geom_point() + 
+#   scale_color_manual(values = viridis(5)) + 
+#   theme_minimal() +
+#   labs(x = "Expenditures on prisons per prisoner", y = "Property crimes per population") +
+#   theme(legend.position = "bottom")
+# 
+# scatterPlot <- scatterPlot + 
+#   transition_time(as.integer(year)) 
+# 
+# anim_save("scatterPlot.gif", scatterPlot)
 
 # Marginal density plot of exp_per_prisoner (top panel)
-xdensity <- ggplot(prison_exp_ext2, 
-                   aes(exp_per_prisoner, fill=as.factor(region))) + 
-  geom_density(alpha=.5) + 
-  scale_fill_manual(values = viridis(5)) + 
-  theme_minimal() +
-  labs(x = "Expenditures on prisons per prisoner", y = "") +
-  theme(legend.position = "bottom")
-
-# Marginal density plot of property_crime_per_pop (right panel)
-ydensity <- ggplot(prison_exp_ext2, 
-                   aes(property_crime_per_pop, fill=region)) +  
-  geom_density(alpha=.5) + 
-  scale_fill_manual(values = viridis(5)) + 
-  theme_minimal() +
-  labs(x = "Property crimes per population", y="") +
-  theme(legend.position = "none")
-
-
+# xdensity <- ggplot(prison_exp_ext2, 
+#                    aes(exp_per_prisoner, fill=as.factor(region))) + 
+#   geom_density(alpha=.5) + 
+#   scale_fill_manual(values = viridis(5)) + 
+#   theme_minimal() +
+#   labs(x = "Expenditures on prisons per prisoner", y = "") +
+#   theme(legend.position = "bottom")
+# 
+# # Marginal density plot of property_crime_per_pop (right panel)
+# ydensity <- ggplot(prison_exp_ext2, 
+#                    aes(property_crime_per_pop, fill=region)) +  
+#   geom_density(alpha=.5) + 
+#   scale_fill_manual(values = viridis(5)) + 
+#   theme_minimal() +
+#   labs(x = "Property crimes per population", y="") +
+#   theme(legend.position = "none")
 ```
-
-
-## Number of prisoners and crimes across states
-
 
 ## State clustering based on crime rates
 
@@ -911,7 +941,7 @@ Below we can see visualised dissimilarity matrix, which show distant observation
 
 The most outlying pairs of states distinguished at the plot are among others Louisiana and New Hampshire, Louisiana and Maine, Maine and Nevada, Nevada and Vermont and also New Hampshire and Nevada. On the other hand, states which are the most similar in case of crime rate are among others Alabama and Arkansas, Vermont and Maine, Maine and New Hampshire, Idaho and South Dakota and also Idaho and North Dakota. 
 
-```{r warning=FALSE, message=FALSE, fig.height=15}
+```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 distance <- get_dist(data_to_cluster)
 distance <- as.matrix(distance)
 heatmaply(distance,  
@@ -924,7 +954,7 @@ According to the result of dissimilarity matrix, we decided to cluster states hi
 
 The results of the clustering are three most similar groups of states. For now, we can deduce that the created clusters might be correlated to the geografical location of the states. We will analyse it in detail further in this section.
 
-```{r fig.height=7, warning=FALSE, message=FALSE}
+```{r fig.height=5, warning=FALSE, message=FALSE, fig.align='center'}
 res.hc <- eclust(data_to_cluster, k=3, "hclust") 
 fviz_dend(res.hc, 
           rect = TRUE, 
@@ -953,7 +983,7 @@ kable_f(table)
 
 We also presented the results of the analysis on the map. Now it is obvious that created clusters are connected to the location of the state. States belonging to cluster 1 are mainly located on the South while states belonging to cluster 3 are located on the North. Cluster 2 includes mainly centrally located states. 
 
-```{r}
+```{r, fig.align='center'}
 #merge cluster data and state spatial data
 colnames(clusters)[1] <- "NAME"
 us_states_clusters <- merge(us_states, clusters, by = "NAME")
@@ -973,23 +1003,44 @@ usa1
 
 Below can be seen the tables regarding mapping jurisdiction and its cluster to different regions. 
 
+
+<div class="row">
+  <div class="column">
 ```{r}
 cluster_1 <- clusters %>% filter(cluster==1)
 colnames(cluster_1) = c("Jurisdiction", "Cluster", "Region")
 kable_f(cluster_1)
 ```
-
+  </div>
+  <div class="column">
 ```{r}
 cluster_2 <- clusters %>% filter(cluster==2)
 colnames(cluster_2) = c("Jurisdiction", "Cluster", "Region")
 kable_f(cluster_2)
 ```
-
+  </div>
+  <div class="column">
 ```{r}
 cluster_3 <- clusters %>% filter(cluster==3)
 colnames(cluster_3) = c("Jurisdiction", "Cluster", "Region")
 kable_f(cluster_3)
 ```
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+
+# Conclusions
+Crime is bad. If you do crime you go to jail.
+
+
+
 
 
 [^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv.
@@ -1002,36 +1053,40 @@ kable_f(cluster_3)
 [^bjs_report]: "Correctional Populations in the United States", Danielle Kaeble and Mary Cowhig, Bureau of Justice Statistics, 2016, https://www.bjs.gov/content/pub/pdf/cpus16.pdf.
 [^report]: Source: https://www.ed.gov/news/press-releases/report-increases-spending-corrections-far-outpace-education.
 [^travis]: "The Growth of incarceration in the United States. Exploring Causes and Consequences", Jeremy Travis, Bruce Western and Steve Redburn, Committee on Law and Justice, Washington, DC 2014, https://johnjay.jjay.cuny.edu/nrc/NAS_report_on_incarceration.pdf.
-[^prisoners] Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269
-[^nyt] Source: https://www.nytimes.com/2006/07/13/us/13deecee.html?_r=1&n=Top%2FReference%2FTimes%20Topics%2FPeople%2FW%2FWilliams%2C%20Anthony%20A.&mtrref=en.wikipedia.org&assetType=REGIWALL
+[^prisoners]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269
+[^nyt]: Source: https://www.nytimes.com/2006/07/13/us/13deecee.html
+[^online_crime]: Source: https://www.researchgate.net/publication/326020920_The_Great_American_Crime_Decline_Possible_Explanations
+[^south_dakota]: Source: https://eu.argusleader.com/story/news/crime/2017/01/13/south-dakota-more-violent-than-s-ever-been/96456896/
+[^north_dakota]: Source: https://www.thedickinsonpress.com/news/government-and-politics/4835908-A-dramatic-decade-Top-North-Dakota-stories-of-the-decade
+[^west_virginia]: Source: https://www.vera.org/downloads/pdfdownloads/state-incarceration-trends-west-virginia.pdf
 
 
 
 Robocze:
 ```{r}
-library(reshape2)
-plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
-          group_by(jurisdiction) %>% 
-          summarise(
-            violent_crime_total = mean(violent_crime_total/area_km2),
-            property_crime_total = mean(property_crime_total/area_km2)) %>%  
-          melt()
-
-ggp1 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
-   geom_bar(stat="identity", width=.5, position = "fill") +
-   theme_minimal() +
-   theme(legend.position = "bottom", 
-         axis.text.x = element_text(angle = 90)) +
-   scale_fill_viridis_d()
-ggp1
-
- ggp2 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
-    geom_bar(stat="identity", width=.5, position = "dodge") +
-    theme_minimal() +
-    theme(legend.position = "bottom",
-          axis.text.x = element_text(angle = 90)) +
-    scale_fill_viridis_d()
-ggp2
+# library(reshape2)
+# plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
+#           group_by(jurisdiction) %>% 
+#           summarise(
+#             violent_crime_total = mean(violent_crime_total/area_km2),
+#             property_crime_total = mean(property_crime_total/area_km2)) %>%  
+#           melt()
+# 
+# ggp1 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
+#    geom_bar(stat="identity", width=.5, position = "fill") +
+#    theme_minimal() +
+#    theme(legend.position = "bottom", 
+#          axis.text.x = element_text(angle = 90)) +
+#    scale_fill_viridis_d()
+# ggp1
+# 
+#  ggp2 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
+#     geom_bar(stat="identity", width=.5, position = "dodge") +
+#     theme_minimal() +
+#     theme(legend.position = "bottom",
+#           axis.text.x = element_text(angle = 90)) +
+#     scale_fill_viridis_d()
+# ggp2
 ```
 
 ```{r}
