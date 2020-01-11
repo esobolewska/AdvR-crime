@@ -563,7 +563,7 @@ The first dependency we would like to find is the relation between the number of
 
 The second dependency we want to reveal is the impact of investment on imprisonment on public safety quantified by the number of different kinds of crimes. We want to see if higher expenditure per prisoner improves public safety by taking into account the number of prisoners per state incarcerated in private prisons.
 
-Furthermorewe will be clustering the states according to crime rates for different types of crimes to check if the results compare geographically.
+Furthermore we will be clustering the states according to crime rates for different types of crimes to check if the results concur geographically.
 
 ## Prisons and crime
 
@@ -640,36 +640,45 @@ bubbles_v <- ggp2 + transition_time(year) +
 
 ## State clustering based on crime rates
 
+The last analysis concerns clustering of states according to crime rates for both kinds of crimes including  murder/manslaughter, robbery, aggravated assault, burglary, larceny and vehicle theft. Crime rates were obtained by dividing the number of occurences of different types of crimes by state population. In order to cluster the data, we also scaled numerical variables in order to get comparable results.
+
 ```{r warning=FALSE, message=FALSE}
-data_to_cluster <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total)) %>% filter(year==2017 & jurisdiction!="District of Columbia")
+data_to_cluster <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total))
 
 data_to_cluster <- data_to_cluster %>% 
-  mutate(murder_manslaughter_per_pop = murder_manslaughter/state_population,
-         robbery_per_pop = robbery/state_population,
-         agg_assault_per_pop = agg_assault/state_population,
-         burglary_per_pop = burglary/state_population, 
-         larceny_per_pop = larceny/state_population,
-         vehicle_theft_per_pop = vehicle_theft/state_population)
+  group_by(jurisdiction) %>% 
+  mutate(murder_manslaughter_per_pop = mean(murder_manslaughter/state_population),
+         robbery_per_pop = mean(robbery/state_population),
+         agg_assault_per_pop = mean(agg_assault/state_population),
+         burglary_per_pop = mean(burglary/state_population), 
+         larceny_per_pop = mean(larceny/state_population),
+         vehicle_theft_per_pop = mean(vehicle_theft/state_population)) 
+
+data_to_cluster <- data_to_cluster %>% select(-c(year, state_population, murder_manslaughter, robbery, agg_assault, burglary, larceny, vehicle_theft)) %>% distinct()
 
 rownames(data_to_cluster) <- data_to_cluster$jurisdiction
-
-data_to_cluster <- data_to_cluster %>% select(-c(year, jurisdiction, state_population, murder_manslaughter, robbery, agg_assault, burglary, larceny, vehicle_theft))
+data_to_cluster$jurisdiction <- NULL
 
 data_to_cluster <- scale(data_to_cluster)
 ```
 
-Below we can see visualised dissimilarity matrix, which show distant observations in yellow and close ones in blue We can easily notice groups of states with similar trends in criminality and also those which differentiate the most. The analysis was conducted based on 
+Below we can see visualised dissimilarity matrix, which show distant observations in yellow and close ones in blue We can easily notice groups of states with similar trends in criminality and also those which differentiate the most. Thanks to the interactive feature of the matrix, we can easily examine which states the most similar and the most dissimilar. 
+
+
+The most outlying pairs of states distinguished at the plot are among others Louisiana and New Hampshire, Louisiana and Maine, Maine and Nevada, Nevada and Vermont and also New Hampshire and Nevada. On the other hand, states which are the most similar in case of crime rate are among others Alabama and Arkansas, Vermont and Maine, Maine and New Hampshire, Idaho and South Dakota and also Idaho and North Dakota. 
 
 ```{r warning=FALSE, message=FALSE, fig.height=15}
-distance <- get_dist(data_to_cluster_1)
+distance <- get_dist(data_to_cluster)
 distance <- as.matrix(distance)
 heatmaply(distance,  
           cellnote_size = 8, fontsize_row = 6, fontsize_col = 7,
           Rowv = FALSE, Colv = FALSE,
-          main = 'Dissimilarity matrix of states')
+          main = 'Dissimilarity matrix for all states')
 ```
 
-According to the result of dissimilarity matrix, we decided to cluster states hierarchically, assuming three clusters. The algorithm 
+According to the result of dissimilarity matrix, we decided to cluster states hierarchically assuming three clusters. The algorithm uses euclidean distance for calculating dissimilarities between observations and ward.D2 method of agglomeration.
+
+The result of the clustering are three most similar groups of states. The first cluster includes states like California, Florida, Nevada, the second cluster includes Hawaii, Utah, Colorado, and the third one includes Maine, Vermont, New York and Virginia. 
 
 ```{r fig.height=7, warning=FALSE, message=FALSE}
 res.hc <- eclust(data_to_cluster, k=3, "hclust") 
@@ -682,13 +691,25 @@ fviz_dend(res.hc,
           ggtheme = theme_minimal()) 
 ```
 
+As a next step of the analysis, we map clusters to the regions of each jurisdiction. It can be seen that in case of Northeast, all states were grouped in one cluster (...)
 
-```{r}
-clusters <- data.frame(jurisdiction = rownames(data_to_cluster_1),
+```{r warning=FALSE, message=FALSE}
+clusters <- data.frame(jurisdiction = rownames(data_to_cluster),
                        cluster = res.hc$cluster)
-
 rownames(clusters) <- NULL
+
+clusters <- clusters %>% 
+  left_join(us_states_info, by = "jurisdiction") %>% 
+  dplyr::select(jurisdiction, cluster, region)
+
+table <- table(clusters$region, clusters$cluster)
+colnames(table) <- c("Cluster 1", "Cluster 2", "Cluster 3")
+kable_f(table)
 ```
+
+
+
+
 
 
 
