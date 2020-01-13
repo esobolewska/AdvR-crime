@@ -9,9 +9,8 @@ output:
     toc_float: true
     toc_depth: 2
     code_folding: hide
-
+    df_print: paged
 ---
-
   
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(readr)
@@ -31,6 +30,8 @@ library(heatmaply)
 library(gganimate)
 library(ggrepel)
 library(gghighlight)
+library(viridis)
+library(reshape2)
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
@@ -119,13 +120,12 @@ ucr <- ucr[, -c(16:21)]
 ind <- apply(ucr, 1, function(x) all(is.na(x)))
 ucr <- ucr[ !ind, ]
 # showing sum of missing values per columns
-sapply(ucr, function(x) sum(is.na(x)))
+data.frame(missings = sapply(ucr, function(x) sum(is.na(x))))
 ```
 
 As you can see on plot on the left below, in the last two years, 2016 and 2017, there is an additional obervation ie. jurisdiction. Looking at the plot on the right, New York is missing in one year, Puerto Rico is visible in only 3 years. District of Columbia is sometimes renamed as DC, but overall it sums up to all 17 years.
 
-```{r, fig.width = 7, fig.height=3, message=FALSE, warning=FALSE, fig.align='center'}
-library(viridis)
+```{r, fig.width = 8, fig.height=3, message=FALSE, warning=FALSE, fig.align='center'}
 plot.data1 = ucr %>% group_by(year) %>% count()
 ggp1 = ggplot(data = plot.data1, aes(x=year, y=n, fill=year,
                                      text = paste("Year: ", year, 
@@ -181,7 +181,7 @@ rape_df <- left_join(rape_df, rape_legacy_count, by="year")
 
 #### Show data
 ```{r}
-kable_f(rape_df)
+rape_df
 ```
 ### <span style="color: white; font-size:8px;">.</span>
 ```{r, message=FALSE, warning=FALSE}
@@ -280,8 +280,6 @@ kable_f(head(prison_exp))
 In order to enhance further visualisations, we add an information about state area and region based on R built-in *us_states* dataset. There are four basic regions distinguished at thi stage: Midwest, Northeast, South and West.
 
 ```{r warning=FALSE}
-library(spData)
-library(sf)
 us_states_info <- data.frame(jurisdiction = us_states$NAME, 
                              region = us_states$REGION,
                              area_km2 = as.numeric(round(us_states$AREA, 0)))
@@ -340,6 +338,13 @@ kable_f(dc.df)
 library(ggthemes)
 library(ggrepel)
 library(gghighlight)
+
+bar.theme = theme(axis.text.x = element_blank(),
+                axis.title.x = element_blank(),
+                legend.position = "bottom",
+                panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank())
+
 plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
                       group_by(jurisdiction) %>% 
                       summarise(property_crime_total = mean(property_crime_total),
@@ -354,206 +359,80 @@ plot.data <- plot.data %>% mutate(property_per_area = property_crime_total/area_
                                   violent_per_pop = violent_crime_total/state_population)
 
 ggp1 <- ggplot() + 
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_crime_total), 
-                               y = property_crime_total, 
-                               fill = as.factor(highlight),), 
-           stat="identity", fill = '#000000') + 
-  scale_fill_discrete(name="Jurisdiction", 
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", 
-              unhighlighted_colour = viridis(51)) +
-  labs(y = "Property crimes (total)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-# tylko propozycja: istnieje taka funckja jak gghighlight(), która łatwo może działać sobie z viridis, dodatkowo można pokolorować pojedynczy słupek w ramach geom_bar(fill = 'jakis kolor')
+          geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_crime_total), 
+                                       y = property_crime_total, 
+                                       fill = as.factor(highlight)), stat="identity") + 
+          scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                              begin = 0.3, end = 0.8) +
+          theme_minimal() +
+          labs(y = "Property crimes total") +
+          bar.theme
 
 ggp2 <- ggplot() + 
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_area), 
-                               y = property_per_area, 
-                               fill = as.factor(highlight)), 
-           stat="identity") + 
-  scale_fill_discrete(name="Jurisdiction", 
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  labs(y = "Property crimes (per area)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
+          geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_area), 
+                                       y = property_per_area, 
+                                       fill = as.factor(highlight)), stat="identity") + 
+          scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                              begin = 0.3, end = 0.8) +
+          theme_minimal() +
+          labs(y = "Property crimes (per area)")  +
+          bar.theme
 
 ggp3 <- ggplot() + 
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_pop), 
-                               y = property_per_pop, 
-                               fill = as.factor(highlight)), 
-           stat="identity") + 
-  scale_fill_discrete(name="Jurisdiction", 
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  labs(y = "Property crimes (per population)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+          geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -property_per_pop), 
+                                       y = property_per_pop, 
+                                       fill = as.factor(highlight)), stat="identity") + 
+          scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                              begin = 0.3, end=0.8) +
+          theme_minimal() +
+          labs(y = "Property crimes (per population)")  +
+          bar.theme
 
 ggp4 <- ggplot() +
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_crime_total),
-                               y = violent_crime_total,
-                               fill = as.factor(highlight)),
-           stat="identity") +
-  scale_fill_discrete(name="Jurisdiction",
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+          geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_crime_total),
+                                       y = violent_crime_total,
+                                       fill = as.factor(highlight)), stat="identity") +
+          scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                              begin = 0.3, end=0.8) +
+          theme_minimal() +
+          labs(y = "Violent crimes total") +
+                  bar.theme
 
 ggp5 <- ggplot() +
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area),
-                               y = violent_per_area,
-                               fill = as.factor(highlight)),
-           stat="identity") +
-  scale_fill_discrete(name="Jurisdiction",
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+          geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area),
+                                       y = violent_per_area,
+                                       fill = as.factor(highlight)), stat="identity") +
+          scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                              begin = 0.3, end=0.8) +
+          theme_minimal() +
+          labs(y = "Violent crimes (per area)")  +
+          bar.theme
 
 ggp6 <- ggplot() +
-  geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop),
-                               y = violent_per_pop,
-                               fill = as.factor(highlight)),
-           stat="identity") +
-  scale_fill_discrete(name="Jurisdiction",
-                      labels = c("other", "District of Columbia")) +
-  theme_minimal() +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+        geom_bar(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop),
+                                     y = violent_per_pop,
+                                     fill = as.factor(highlight)), stat="identity") +
+        scale_fill_viridis_d(name="Jurisdiction", labels = c("other", "District of Columbia"),
+                            begin = 0.3, end=0.8) +
+        theme_minimal() +
+        labs(y = "Violent crimes (per population)")  +
+                bar.theme
 
-# mylegend <- g_legend(ggp1)
+mylegend <- g_legend(ggp1)
 
-# grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
-#                          ggp2 + theme(legend.position="none"),
-#                          ggp3 + theme(legend.position="none"),
-#                          ggp4 + theme(legend.position="none"),
-#                          ggp5 + theme(legend.position="none"),
-#                          ggp6 + theme(legend.position="none"),
-#                          nrow=2), mylegend, nrow=2, heights=c(10, 1))
-
-grid.arrange(ggp1, ggp2, ggp3, ggp4, ggp5, ggp6, nrow=2)
-```
-
-
-Propozycja Ewe:
-```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
-# data preparation
-plot.data <- left_join(ucr, us_states_info, by="jurisdiction") %>% 
-                      group_by(jurisdiction) %>% 
-                      summarise(property_crime_total = mean(property_crime_total),
-                                violent_crime_total = mean(violent_crime_total),
-                                area_km2 = mean(area_km2),
-                                state_population = mean(state_population))
-
-plot.data <- plot.data %>% mutate(property_per_area = property_crime_total/area_km2,
-                                  property_per_pop = property_crime_total/state_population,
-                                  violent_per_area = violent_crime_total/area_km2,
-                                  violent_per_pop = violent_crime_total/state_population)
-
-# plots
-ggp1 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -property_crime_total), 
-                                   y = property_crime_total)) + 
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Property crimes (total)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-# tylko propozycja: istnieje taka funckja jak gghighlight(), która łatwo może działać sobie z viridis, dodatkowo można pokolorować pojedynczy słupek w ramach geom_bar(fill = 'jakis kolor')
-
-ggp2 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -property_per_area), 
-                                   y = property_per_area)) + 
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Property crimes (per area)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-
-ggp3 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -property_per_pop), 
-                               y = property_per_pop)) + 
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Property crimes (per population)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-
-ggp4 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -violent_crime_total),
-                               y = violent_crime_total)) +
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Violent crimes (total)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-
-ggp5 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_area),
-                               y = violent_per_area)) +
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Violent crimes (per area)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-
-ggp6 <- ggplot(data=plot.data, aes(x = reorder(jurisdiction, -violent_per_pop),
-                               y = violent_per_pop)) +
-  geom_bar(stat="identity", fill = '#C70039') + 
-  theme_minimal() +
-  gghighlight(jurisdiction == "District of Columbia", unhighlighted_colour = viridis(51)) +
-  labs(y = "Violent crimes (per population)") +
-  theme(axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        legend.position = "bottom",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) 
-
-grid.arrange(ggp1, ggp2, ggp3, ggp4, ggp5, ggp6, nrow=2)
+grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
+                         ggp2 + theme(legend.position="none"),
+                         ggp3 + theme(legend.position="none"),
+                         ggp4 + theme(legend.position="none"),
+                         ggp5 + theme(legend.position="none"),
+                         ggp6 + theme(legend.position="none"),
+                         nrow=2), mylegend, nrow=2, heights=c(10, 1))
 ```
 
 ```{r}
 ucr <- ucr %>% filter(jurisdiction!="District of Columbia")
 prison_exp <- prison_exp %>% filter(jurisdiction!="District of Columbia")
 ```
-
 
 # Background
 
@@ -565,15 +444,15 @@ According to Travis, Western and Redburn [^travis] from 1973 to 2009, the state 
 prison_year <- prison %>% group_by(year) %>% summarise(value = sum(prison))
 
 p <- ggplot(data = prison_year, aes(x = year, y = value/1000000, color = year,  
-                                          text = paste("Year: ", year,
-                                          "<br>Number of prisoners:", comma(round(value), 0)))) +
-  geom_point() +
-  scale_color_viridis_d() +
-  labs(title = "Number of prisoners in state and federal prison in the USA per year", 
-       x = "Year", 
-       y = "Number of prisoners (in milions)") +
-  theme_minimal() +
-  theme(legend.position = "none")
+                                    text = paste("Year: ", year, "<br>Number of prisoners:", 
+                                                 comma(round(value), 0)))) +
+        geom_point() +
+        scale_color_viridis_d() +
+        labs(title = "Number of prisoners in state and federal prison in the USA per year", 
+             x = "Year", 
+             y = "Number of prisoners (in milions)") +
+        theme_minimal() +
+        theme(legend.position = "none")
   
 ggplotly(p, tooltip = "text")
 ```
@@ -584,26 +463,32 @@ The proportion of violent and property crimes is similar across regions, where v
 
 On the right plot below can be seen the average regional values with the maintained relation between regions. The South region has the highest number of crimes regardless of its significant area. 
 
-```{r, fig.height = 3, fig.width = 5, warning=FALSE, message=FALSE, fig.align='center'}
-library(reshape2)
-plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
-          group_by(region) %>% 
-          summarise(
-            violent_crime_total = mean(violent_crime_total/area_km2),
-            property_crime_total = mean(property_crime_total/area_km2)) %>%  
-          melt()
+```{r, fig.height = 3, fig.width = 6, warning=FALSE, message=FALSE, fig.align='center'}
+plot.data <- ucr %>% 
+                left_join(us_states_info, by="jurisdiction") %>% 
+                group_by(region) %>% 
+                summarise(
+                  violent_crime_total = mean(violent_crime_total/area_km2),
+                  property_crime_total = mean(property_crime_total/area_km2)) %>%  
+                melt()
 
 ggp1 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "fill") +
    theme_minimal() + 
    theme(legend.position = "bottom", axis.title.x = element_blank()) +
-   scale_fill_viridis_d()
+   scale_fill_viridis_d(name="Type",
+                      labels = c("Violent", "Property"),
+                      begin = 0.3,
+                      end=0.8)
 
 ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "dodge") +
    theme_minimal() +
    theme(axis.title.x = element_blank()) +
-   scale_fill_viridis_d()
+   scale_fill_viridis_d(name="Type",
+                      labels = c("Violent", "Property"),
+                      begin = 0.3,
+                      end=0.8)
 
 mylegend<-g_legend(ggp1)
 
@@ -612,7 +497,7 @@ grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
                          nrow=1), mylegend, nrow=2, heights=c(10, 1))
 ```
 
-Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes. In case of property crimes there is a visible division aligned with the historical North and South  during the Civil War. In the South there are more property crimes than in Northeast. However when looking at the north and the south in a geographical sense (dividing country horizontally), there is a difference for both types of crimes, once again with higher rate in the south. What is more, when comparing maps we can see a difference in the Northeast region concerning New York, Pennsylvania, New Jersey and Massachusetts. For all of these states, we see that there are more violent than property crimes per population. One more state in which the difference can also be seen is a southern state - Idaho.
+Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes. In case of property crimes there is a visible division aligned with the historical North and South  during the Civil War. In the South there are more property crimes than in Northeast. However when looking at the north and the south in a geographical sense (dividing country horizontally), there is a difference for both types of crimes, once again with higher rate in the south. What is more, when comparing maps we can see a difference in the Northeast region concerning New York, Pennsylvania, New Jersey and Massachusetts. For all of these states, we see that there are more violent than property crimes per population compared to other states. One more state in which the difference can also be seen is a southern state - Idaho.
 
 ```{r warning=FALSE, message=FALSE}
 #create df with mean values across years per state from ucr
@@ -653,12 +538,12 @@ us_states_regions <- rbind(us_states_midwest, us_states_norteast, us_states_sout
 
 # create usa map for both crime types
 usa1 <- ggplot() +
-          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0) +
+          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0, color = "white") +
           scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
           theme(legend.position = "none") +
           theme_minimal()
 usa2 <- ggplot(data = us_states_ucr) +
-          geom_sf(data = us_states_ucr, aes(fill = violent_crime_per_pop), lwd = 0) +
+          geom_sf(data = us_states_ucr, aes(fill = violent_crime_per_pop), lwd = 0, color = "white") +
           scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
           theme(legend.position = "none") +
           theme_minimal()
@@ -667,13 +552,13 @@ usa2 <- ggplot(data = us_states_ucr) +
 usa_all1 <- usa1 + 
               ggtitle("Property crimes per population across states")+
               theme(legend.position = "right") +
-              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
               scale_color_manual(values = heat.colors(6)[2:5])
 
 usa_all2 <- usa2 + 
               ggtitle("Violent crimes per population across states")+
                             theme(legend.position = "right") +
-              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
+              geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
               scale_color_manual(values = heat.colors(6)[2:5])
 
 # zoom and format zoomed map of DC
@@ -692,7 +577,7 @@ usa_dc2 <- usa2 +
                   axis.ticks = element_blank(),
                   legend.position = "none")
 
-# combine both plots and add red rectangle around zoomed area
+# combine both plots and add rectangle around zoomed area
 ggp1 <- usa_all1 + 
           annotation_custom(ggplotGrob(usa_dc1), xmin= -80, ymax= 35)+
           geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
@@ -700,7 +585,6 @@ ggp1 <- usa_all1 +
 ggp2 <- usa_all2 + 
           annotation_custom(ggplotGrob(usa_dc2), xmin= -80, ymax= 35)+
           geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
-
 ```
 
 
@@ -1112,61 +996,30 @@ colnames(clusters)[1] <- "NAME"
 us_states_clusters <- merge(us_states, clusters, by = "NAME")
 
 usa1 <- ggplot() +
-  geom_sf(data = us_states_clusters, aes(fill = as.factor(cluster)), lwd = 0) +
+  geom_sf(data = us_states_clusters, aes(fill = as.factor(cluster)), lwd = 0, color="white") +
   scale_fill_manual(values = viridis(6)[2:5]) +
   theme(legend.position = "none") +
   theme_minimal() +
   ggtitle("Mapping clusters and regions") +
   theme(legend.position = "right") +
-  geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.6) +
+  geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
   scale_color_manual(values = heat.colors(6)[2:5])
 
 usa1
 ```
 
-Below can be seen the tables regarding mapping jurisdiction and its cluster to different regions. 
+Below can be seen a table regarding mapping jurisdiction and its cluster to different regions. 
 
-
-<div class="row">
-  <div class="column">
 ```{r}
-cluster_1 <- clusters %>% filter(cluster==1)
-colnames(cluster_1) = c("Jurisdiction", "Cluster", "Region")
-kable_f(cluster_1)
+clusters %>% arrange(cluster, region)
 ```
-  </div>
-  <div class="column">
-```{r}
-cluster_2 <- clusters %>% filter(cluster==2)
-colnames(cluster_2) = c("Jurisdiction", "Cluster", "Region")
-kable_f(cluster_2)
-```
-  </div>
-  <div class="column">
-```{r}
-cluster_3 <- clusters %>% filter(cluster==3)
-colnames(cluster_3) = c("Jurisdiction", "Cluster", "Region")
-kable_f(cluster_3)
-```
-  </div>
-</div>
 
-
-
-
-
-
-
-</div>
 
 # Conclusions
-Crime is bad. If you do crime you go to jail.
+This paper presents the analysis of crime and incarceration in the United States using information on the level of different types of crimes, number of prisoners and federal expenditures on corrections. It turns out that there are on average 10 times more property crimes than violent crimes per square km. Additionally the Northeastern region has the highest number of crimes compared to other regions. Some Midwestern states like New York, Pennsylvania, New Jersey and Massachusets are ranked higher with violent crimes than property crimes compared to other states. The results of the analysis of the relationships between the number of prisoners per capita and the rates of violent crimes per capita showed a positive relationship between these variables as predicted. Over time, the relationship is ambiguous since some states show a negative and some positive relation in time. Additionally for both violent and property crimes, the numbers drop after 2009, an effect that can be especially noticed with property crimes. The highest swings between values in crimes in 2001 and 2016 can be noticed for North and South Dakotas, mainly in 2005 and 2006 when the crime rates spiked. As for incarceration rates, the state with the highest percent change of incarceration rates is West Virginia. We couldn't unequivocally define the relationship between investments into prisons and crime rates. Finally we performed clustering analysis on states based on different types of crimes resulting in 3 clusters that could be approximattely matched with the geographical locations of the states.
 
 
-
-
-
-[^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states#ucr_by_state.csv.
+[^kaggle]: Source: https://www.kaggle.com/christophercorrea/prisoners-and-crime-in-united-states
 [^bjs]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=269.
 [^fbi]: Source: https://www.ucrdatatool.gov/Search/Crime/State/RunCrimeStatebyState.cfm.
 [^prison_exp]: Source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286.
@@ -1182,55 +1035,3 @@ Crime is bad. If you do crime you go to jail.
 [^south_dakota]: Source: https://eu.argusleader.com/story/news/crime/2017/01/13/south-dakota-more-violent-than-s-ever-been/96456896/
 [^north_dakota]: Source: https://www.thedickinsonpress.com/news/government-and-politics/4835908-A-dramatic-decade-Top-North-Dakota-stories-of-the-decade
 [^west_virginia]: Source: https://www.vera.org/downloads/pdfdownloads/state-incarceration-trends-west-virginia.pdf
-
-
-
-Robocze:
-```{r}
-# library(reshape2)
-# plot.data <- ucr %>% left_join(us_states_info, by="jurisdiction") %>% 
-#           group_by(jurisdiction) %>% 
-#           summarise(
-#             violent_crime_total = mean(violent_crime_total/area_km2),
-#             property_crime_total = mean(property_crime_total/area_km2)) %>%  
-#           melt()
-# 
-# ggp1 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
-#    geom_bar(stat="identity", width=.5, position = "fill") +
-#    theme_minimal() +
-#    theme(legend.position = "bottom", 
-#          axis.text.x = element_text(angle = 90)) +
-#    scale_fill_viridis_d()
-# ggp1
-# 
-#  ggp2 <- ggplot(data = plot.data, aes(x=jurisdiction, y=value, fill=variable)) +
-#     geom_bar(stat="identity", width=.5, position = "dodge") +
-#     theme_minimal() +
-#     theme(legend.position = "bottom",
-#           axis.text.x = element_text(angle = 90)) +
-#     scale_fill_viridis_d()
-# ggp2
-```
-
-```{r}
-# interpolation <- data %>%
-#   group_by(country) %>%
-#   mutate(valueIpol = approx(year, women_part, year, 
-#                             method = "linear", rule = 1:2, f = 0, ties = mean)$y)
-# i=0
-# for (i in seq_along(interpolation$valueIpol)) {
-#   if (is.na(interpolation$women_part[i]) == FALSE) 
-#     i = i+1
-#   else if (is.na(interpolation$women_part[i]) == TRUE) 
-#     interpolation$women_part[i] <- interpolation$valueIpol[i]
-# }
-```
-
-> https://www.datanovia.com/en/blog/top-r-color-palettes-to-know-for-great-data-visualization/  
-
-> jaka jest zależność między liczbą więźniów (prison) a wystąpieniami poszczególnych crime na przestrzeni lat (ucr)? 
-> czy wzrost uwięzionych zminiejsza odsetek jakiegoś typu przestępstw? 
-> czy może jest stały wzrost/spadek przestępstw? (geom line i geom smooth)
-> Does this significant investment into imprisonment improve public safety? wydatki na więzienia a wystąpienia przestępstw - ogółem i w kategoriach, w roku 2016 (najnowsze dane); source: https://www.bjs.gov/index.cfm?ty=dcdetail&iid=286
-> jak wygląda liczba uwięzionych na przestrzeni lat dla poszczególnych stanów?
-> klastrowanie stanów na podstawie liczby różnych typów crime (hierarchiczne lub cos)
