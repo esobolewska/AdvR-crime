@@ -15,6 +15,7 @@ output:
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(readr)
 library(dplyr)
+library(grid)
 library(gridExtra)
 library(ggplot2)
 library(plotly)
@@ -335,10 +336,6 @@ kable_f(dc.df)
 
 
 ```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
-library(ggthemes)
-library(ggrepel)
-library(gghighlight)
-
 bar.theme = theme(axis.text.x = element_blank(),
                 axis.title.x = element_blank(),
                 legend.position = "bottom",
@@ -813,9 +810,6 @@ prison_exp_ext2$property_crime_per_pop <- (prison_exp_ext2$property_crime_total)
 
 
 ```{r warning=FALSE, message=TRUE, fig.height=7, fig.align='center'}
-library(grid)
-library(gridExtra)
-
 # scatter plot of x and y variables
 scatterPlot <- ggplot(prison_exp_ext2, 
                       aes(exp_per_prisoner, 
