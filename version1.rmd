@@ -33,6 +33,7 @@ library(ggrepel)
 library(gghighlight)
 library(viridis)
 library(reshape2)
+library(ggpubr)
 
 kable_f = function(...) {
   knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
@@ -121,7 +122,7 @@ ucr <- ucr[, -c(16:21)]
 ind <- apply(ucr, 1, function(x) all(is.na(x)))
 ucr <- ucr[ !ind, ]
 # showing sum of missing values per columns
-data.frame(missings = sapply(ucr, function(x) sum(is.na(x))))
+data.frame(Missings = sapply(ucr, function(x) sum(is.na(x))))
 ```
 
 As you can see on plot on the left below, in the last two years, 2016 and 2017, there is an additional obervation ie. jurisdiction. Looking at the plot on the right, New York is missing in one year, Puerto Rico is visible in only 3 years. District of Columbia is sometimes renamed as DC, but overall it sums up to all 17 years.
@@ -182,7 +183,9 @@ rape_df <- left_join(rape_df, rape_legacy_count, by="year")
 
 #### Show data
 ```{r}
-rape_df
+rape_df %>% rename(Year = year, 
+                   `Rape Revised` = rape_revised_count,
+                   `Rape Legacy` = rape_legacy_count)
 ```
 ### <span style="color: white; font-size:8px;">.</span>
 ```{r, message=FALSE, warning=FALSE}
@@ -216,7 +219,14 @@ for(ii in seq_along(pl)) {
   
   pl[[ii]] <- .p
 }
-
+pl[[1]][["labels"]][["title"]] <- "Violent crimes (total)"
+pl[[2]][["labels"]][["title"]] <- "Murder and manslaughter"
+pl[[3]][["labels"]][["title"]] <- "Robbery"
+pl[[4]][["labels"]][["title"]] <- "Aggravate assault"
+pl[[5]][["labels"]][["title"]] <- "Property crimes (total)"
+pl[[6]][["labels"]][["title"]] <- "Burglary"
+pl[[7]][["labels"]][["title"]] <- "Larceny"
+pl[[8]][["labels"]][["title"]] <- "Vehicle theft"
 grid.arrange(grobs=pl, ncol=2)
 ```
 
@@ -233,7 +243,12 @@ names(prison)[names(prison) == "wave"] <- "year"
 names(prison)[names(prison) == "1"] <- "prison"
 prison$year <- as.factor(prison$year)
 
-kable_f(head(prison))
+prison %>% rename(Jurisdiction = jurisdiction,
+                  Year = year,
+                  `If includes jails` = includes_jails,
+                  `Number of prisoners` = prison) %>%
+  head() %>% 
+  kable_f()
 ```
 
 ## Number of prisoners in private prisons
@@ -794,7 +809,6 @@ ggplotly(ggp_imprisonment, tooltip = "text")
 
 In order to find the relationship between investments into prisons and crime rates, we calculated the value of expenditures per prisoner and the number of crime cases per state population. It is difficult to explicitly state what is the pattern between these two variables in time and across states. We cannot define if expenditures on prisons influence public safety and this is perhaps why other forms of rehabilitation should be considered.
 
-![](scatterPlot.gif)
 
 ```{r message=FALSE, warning=FALSE}
 state_population <- ucr %>% select(jurisdiction, year, state_population, violent_crime_total, property_crime_total)
@@ -819,12 +833,11 @@ scatterPlot <- ggplot(prison_exp_ext2,
   geom_point() + 
   scale_color_manual(values = viridis(5)) + 
   theme_minimal() +
-  labs(x = "Expenditures on prisons per prisoner", y = "Violent crimes per population") +
+  labs(x = "Expenditures on prisons per prisoner", y = "Violent crimes per population", color = "Regions") +
   theme(legend.position = "bottom")
-
-scatterPlot <- scatterPlot + 
-  transition_time(as.integer(year)) 
-
+my_legend_scatter <- g_legend(scatterPlot)
+scatterPlot <- scatterPlot + theme(legend.position = "none")
+scatterPlot <- scatterPlot + transition_time(as.integer(year)) 
 # anim_save("scatterPlot.gif", scatterPlot)
 
 # Marginal density plot of exp_per_prisoner (top panel)
@@ -833,8 +846,11 @@ xdensity <- ggplot(prison_exp_ext2,
   geom_density(alpha=.5) + 
   scale_fill_manual(values = viridis(5)) + 
   theme_minimal() +
-  labs(x = "Expenditures on prisons per prisoner", y = "") +
+  labs(x = "Expenditures on prisons per prisoner", y = "", fill="") +
   theme(legend.position = "bottom")
+my_legend_density <- g_legend(xdensity)
+# xdensity + theme(legend.position = "none")
+# ggsave("xdensity.png", width=7, height = 3)
 
 # Marginal density plot of violent_crime_per_pop (right panel)
 ydensity <- ggplot(prison_exp_ext2, 
@@ -844,75 +860,36 @@ ydensity <- ggplot(prison_exp_ext2,
   theme_minimal() +
   labs(x = "Violent crimes per population", y="") +
   theme(legend.position = "none")
+# ydensity + coord_flip()
+# ggsave("ydensity.png", width=3, height = 7)
 
-# blankPlot <- ggplot() + 
-#   geom_blank(aes(1,1)) +
-#   theme(plot.background = element_blank(), 
-#    panel.grid.major = element_blank(),
-#    panel.grid.minor = element_blank(), 
-#    panel.border = element_blank(),
-#    panel.background = element_blank(),
-#    axis.title.x = element_blank(),
-#    axis.title.y = element_blank(),
-#    axis.text.x = element_blank(), 
-#    axis.text.y = element_blank(),
-#    axis.ticks = element_blank()
-# )
+blankPlot <- ggplot() +
+              geom_blank(aes(1,1)) +
+              theme(plot.background = element_blank(),
+               panel.grid.major = element_blank(),
+               panel.grid.minor = element_blank(),
+               panel.border = element_blank(),
+               panel.background = element_blank(),
+               axis.title.x = element_blank(),
+               axis.title.y = element_blank(),
+               axis.text.x = element_blank(),
+               axis.text.y = element_blank(),
+               axis.ticks = element_blank())
+# blankPlot
+# ggsave("blankPlot.png", width=3, height = 3)
 
-# my_legend_scatter <- g_legend(scatterPlot)
-# my_legend_density <- g_legend(xdensity)
+# as_ggplot(grid.arrange(my_legend_scatter, my_legend_density, ncol=2))
+# ggsave("legends.png", width=10, height = 3)
 
-# grid.arrange(arrangeGrob(xdensity + theme(legend.position = "none"),
-#                          blankPlot, 
-#                          scatterPlot + theme(legend.position = "none"), 
-#                          ydensity, 
-#                          ncol=2, nrow=2, widths=c(4, 1.4), heights=c(1.4, 4)), 
-#              arrangeGrob(my_legend_scatter, my_legend_density, ncol=2), 
-#              top = textGrob("Relation of expenditures on prisons per prisoner and the number of violent crimes",
-#                             gp = gpar(fontsize=20)),
-#              nrow=2, heights=c(10, 1)) 
 ```
 
 
-```{r}
-# grid.arrange(my_legend_scatter, my_legend_density, ncol=2, 
-#              heights=c(10, 1))
-```
+<img id="image_canv" src="xdensity.png" width="500">
+<img id="image_canv" src="blankPlot.png" width="200">
+<img id="image_canv" src="scatterPlot.gif" width="500">
+<img id="image_canv" src="ydensity.png"  width = "200">
+<img id="image_canv" src="legends.png">
 
-
-```{r warning=FALSE, message=TRUE, fig.height=7}
-# scatter plot 
-# scatterPlot <- ggplot(prison_exp_ext2, 
-#                       aes(exp_per_prisoner, property_crime_per_pop, color=region, frame=as.integer(year))) + 
-#   geom_point() + 
-#   scale_color_manual(values = viridis(5)) + 
-#   theme_minimal() +
-#   labs(x = "Expenditures on prisons per prisoner", y = "Property crimes per population") +
-#   theme(legend.position = "bottom")
-# 
-# scatterPlot <- scatterPlot + 
-#   transition_time(as.integer(year)) 
-# 
-# anim_save("scatterPlot.gif", scatterPlot)
-
-# Marginal density plot of exp_per_prisoner (top panel)
-# xdensity <- ggplot(prison_exp_ext2, 
-#                    aes(exp_per_prisoner, fill=as.factor(region))) + 
-#   geom_density(alpha=.5) + 
-#   scale_fill_manual(values = viridis(5)) + 
-#   theme_minimal() +
-#   labs(x = "Expenditures on prisons per prisoner", y = "") +
-#   theme(legend.position = "bottom")
-# 
-# # Marginal density plot of property_crime_per_pop (right panel)
-# ydensity <- ggplot(prison_exp_ext2, 
-#                    aes(property_crime_per_pop, fill=region)) +  
-#   geom_density(alpha=.5) + 
-#   scale_fill_manual(values = viridis(5)) + 
-#   theme_minimal() +
-#   labs(x = "Property crimes per population", y="") +
-#   theme(legend.position = "none")
-```
 
 ## State clustering based on crime rates
 

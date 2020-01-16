@@ -239,7 +239,7 @@ p <- ggplot(data = prison_year, aes(x = year, y = value/1000000, color = year,
 ggplotly(p, tooltip = "text")
 ```
 
-## Proprty vs. violent crimes ratio
+## Property vs. violent crimes ratio
 ```{r, fig.height = 3, fig.width = 6, warning=FALSE, message=FALSE, fig.align='center'}
 plot.data <- ucr %>% 
                 left_join(us_states_info, by="jurisdiction") %>% 
