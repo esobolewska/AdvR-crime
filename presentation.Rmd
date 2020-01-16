@@ -1,9 +1,29 @@
 ---
-title: "Crimes and Incarcerations"
+title: "Crimes and incarcerations"
 author: "Ewelina Osowska, Ewa Sobolewska"
 date: "16/01/2020"
-output: ioslides_presentation
+output:
+  ioslides_presentation:
+    widescreen: true
+    smaller: true
 ---
+
+<style>
+  .column {
+  float: left;
+  width: 33%;
+  }
+  .row:after {
+  content: "";
+  display: table;
+  clear: both;
+  }
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+</style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -66,19 +86,6 @@ names(prison)[names(prison) == "wave"] <- "year"
 names(prison)[names(prison) == "1"] <- "prison"
 prison$year <- as.factor(prison$year)
 
-private_prisons <- read_delim("data/private_prisons.csv", ";", na="/")
-
-colnames(private_prisons)[2:9] <- paste0(colnames(private_prisons)[2:9],'1')
-private_prisons <- long_panel(private_prisons, begin = 2009, end = 2016, label_location = "beginning", id = "jurisdiction")
-names(private_prisons)[names(private_prisons) == "wave"] <- "year"
-names(private_prisons)[names(private_prisons) == "1"] <- "private_prisons"
-private_prisons$year <- as.factor(private_prisons$year)
-#creating new column
-private_prisons <- left_join(private_prisons, prison, by=c("state"="jurisdiction", "year")) %>%
-                        mutate(private_prisons_pct = round(private_prisons/prison*100,4)) %>% 
-                        select(year, state, private_prisons, private_prisons_pct)
-private_prisons$jurisdiction <- NULL
-
 prison_exp <- read_delim("data/prison_expenditures.csv", ";")
 
 prison_exp <- long_panel(prison_exp, begin = 2009, end = 2016, prefix="_", label_location = "end", id = "jurisdiction")
@@ -98,31 +105,21 @@ additional_states <- data.frame(jurisdiction = c("Hawaii", "Alaska"),
 us_states_info <- rbind(us_states_info, additional_states)
 ```
 
-## Crime variable distributions
+## Aim of the project
 
-```{r, message=FALSE, warning=FALSE, fig.align='center'}
-pl <- vector("list", length = ncol(ucr[,c(5:13)])-1)
-colors <- viridis(8)
-for(ii in seq_along(pl)) {
-  .col <- colnames(ucr[,c(5:13)])[-1][ii]
-  .p <- ggplot(ucr, aes_string(x=.col, fill="colors[ii]", color="colors[ii]")) + 
-          geom_density(alpha=0.3) + 
-          scale_fill_manual(values = colors[ii], aesthetics = c("color", "fill")) +
-          theme_minimal() +           
-          theme(legend.position = "none",
-                axis.title.x = element_blank(),
-                axis.title.y = element_blank()) +
-          labs(title = .col) + 
-          scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) + 
-          scale_x_continuous(labels = function(x) format(x, scientific = FALSE)) 
-  
-  pl[[ii]] <- .p
-}
+<br>
+<br>
+Review of crime and incarceration trends in the United States and also examining the relationships in data regarding crimes commited, number of prisoners and prison expenditures across time and states.
 
-grid.arrange(grobs=pl, nrow=2)
-```
 
-## District of Columbia
+## Data 
+
+- The FBI Uniform Crime Reporting Program (UCR dataset)
+- The National Prisoner Statistics Program (prison dataset)
+- Justice Expenditure And Employment Extracts Series (prison expenditures dataset)
+
+
+## Specificity of District of Columbia
 
 ```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 bar.theme = theme(axis.text.x = element_blank(),
@@ -220,7 +217,7 @@ ucr <- ucr %>% filter(jurisdiction!="District of Columbia")
 prison_exp <- prison_exp %>% filter(jurisdiction!="District of Columbia")
 ```
 
-## Crime background
+## Background (1/3){.flexbox .vcenter}
 
 ```{r, warning=FALSE, fig.height=4, fig.align='center'}
 prison_year <- prison %>% group_by(year) %>% summarise(value = sum(prison))
@@ -239,42 +236,7 @@ p <- ggplot(data = prison_year, aes(x = year, y = value/1000000, color = year,
 ggplotly(p, tooltip = "text")
 ```
 
-## Property vs. violent crimes ratio
-```{r, fig.height = 3, fig.width = 6, warning=FALSE, message=FALSE, fig.align='center'}
-plot.data <- ucr %>% 
-                left_join(us_states_info, by="jurisdiction") %>% 
-                group_by(region) %>% 
-                summarise(
-                  violent_crime_total = mean(violent_crime_total/area_km2),
-                  property_crime_total = mean(property_crime_total/area_km2)) %>%  
-                melt()
-
-ggp1 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
-   geom_bar(stat="identity", width=.5, position = "fill") +
-   theme_minimal() + 
-   theme(legend.position = "bottom", axis.title.x = element_blank()) +
-   scale_fill_viridis_d(name="Type",
-                      labels = c("Violent", "Property"),
-                      begin = 0.3,
-                      end=0.8)
-
-ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
-   geom_bar(stat="identity", width=.5, position = "dodge") +
-   theme_minimal() +
-   theme(axis.title.x = element_blank()) +
-   scale_fill_viridis_d(name="Type",
-                      labels = c("Violent", "Property"),
-                      begin = 0.3,
-                      end=0.8)
-
-mylegend<-g_legend(ggp1)
-
-grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
-                         ggp2 + theme(legend.position="none"),
-                         nrow=1), mylegend, nrow=2, heights=c(10, 1))
-```
-
-## Crimes per population map 1/2
+## Background (2/3){.flexbox .vcenter}
 
 ```{r warning=FALSE, message=FALSE}
 #create df with mean values across years per state from ucr
@@ -314,14 +276,14 @@ us_states_west <- us_states %>%
 us_states_regions <- rbind(us_states_midwest, us_states_norteast, us_states_south, us_states_west) %>% st_sf()
 
 # create usa map for both crime types
-usa1 <- ggplot() +
-          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0, color = "white") +
-          scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+usa1 <- ggplot(data = us_states_ucr) +
+          geom_sf(aes(fill = property_crime_per_pop), lwd = 0, color = "white") +
+          scale_fill_viridis_c(option = "viridis", trans = "sqrt", name = "Property crimes\nper population") +
           theme(legend.position = "none") +
           theme_minimal()
 usa2 <- ggplot(data = us_states_ucr) +
-          geom_sf(data = us_states_ucr, aes(fill = violent_crime_per_pop), lwd = 0, color = "white") +
-          scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+          geom_sf(aes(fill = violent_crime_per_pop), lwd = 0, color = "white") +
+          scale_fill_viridis_c(option = "viridis", trans = "sqrt", name = "Violent crimes\nper population") +
           theme(legend.position = "none") +
           theme_minimal()
 
@@ -330,64 +292,64 @@ usa_all1 <- usa1 +
               ggtitle("Property crimes per population across states")+
               theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-              scale_color_manual(values = heat.colors(6)[2:5])
+              scale_color_manual(values = heat.colors(6)[2:5], name = "Region")
 
 usa_all2 <- usa2 + 
-              ggtitle("Violent crimes per population across states")+
-                            theme(legend.position = "right") +
+              ggtitle("Violent crimes per population across states") +
+              theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-              scale_color_manual(values = heat.colors(6)[2:5])
+              scale_color_manual(values = heat.colors(6)[2:5], name = "Region")
 
 # zoom and format zoomed map of DC
 usa_dc1 <- usa1 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
-            guides(fill=FALSE)+
+            guides(fill=FALSE) +
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
                   axis.ticks = element_blank(),
                   legend.position = "none")
 usa_dc2 <- usa2 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
-            guides(fill=FALSE)+
+            guides(fill=FALSE) +
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
                   axis.ticks = element_blank(),
-                  legend.position = "none")
+                  legend.position = "none") 
 
 # combine both plots and add rectangle around zoomed area
 ggp1 <- usa_all1 + 
           annotation_custom(ggplotGrob(usa_dc1), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black") +
+          guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
 
 ggp2 <- usa_all2 + 
           annotation_custom(ggplotGrob(usa_dc2), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black") +
+          guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
 ```
 
 ```{r}
 ggp1
 ```
 
-## Crimes per population map 2/2
+## Background (3/3){.flexbox .vcenter}
 
 ```{r}
 ggp2
 ```
 
-## Bubble plot
+## Incarceration and crime rates (1/4){.flexbox .vcenter}
 
 <div class="columns-2">
-text 1
-
+Violent crimes per population in time
 ![](bubbles_violent.gif){width=350px}
 
-
-text2
-
+Property crimes per population in time
 ![](bubbles_property.gif){width=350px}
-<div>
 
-## differences 2001 2016 1/3
+</div>
+
+## Incarceration and crime rates (2/4){.flexbox .vcenter} 
 
 ```{r warning=FALSE, message=FALSE, fig.height=7}
 # preparing data
@@ -476,31 +438,35 @@ ggp_imprisonment <- ggplot(data = final_data_plot,
   theme_minimal() +
   scale_y_continuous(limits=c(-40, 80), breaks=seq(-40, 80, 10), labels=percent) +
   theme(legend.position = "none", axis.text=element_text(size=6))
-  
 ```
 
-#### Violent crime rates
-
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
+```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 ggplotly(ggp_violent, tooltip = "text")
 ```
 
-## differences 2001 2016 2/3
-#### Property crime rates
+## Incarceration and crime rates (3/4){.flexbox .vcenter}
 
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
+```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 ggplotly(ggp_property, tooltip = "text") 
 ```
 
-## differences 2001 2016 3/3
-#### Imprisonment rates
+## Incarceration and crime rates (4/4){.flexbox .vcenter} 
 
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
+```{r warning=FALSE, message=FALSE, fig.height=5, fig.align='center'}
 ggplotly(ggp_imprisonment, tooltip = "text") 
 ```
 
-## Clustering heatmap
+## Investments into prisons and crime rates{.flexbox .vcenter}
 
+<img id="image_canv" src="xdensity.png" width="300">
+<img id="image_canv" src="blankPlot.png" width="120">
+
+<img id="image_canv" src="scatterPlot.gif" width="300">
+<img id="image_canv" src="ydensity.png" width="120">
+
+<img id="image_canv" src="legends.png" width="420">
+
+## Clustering (1/3){.flexbox .vcenter}
 
 ```{r warning=FALSE, message=FALSE}
 data_to_cluster <- ucr %>% dplyr::select(-c(crime_reporting_change, crimes_estimated, violent_crime_total, property_crime_total))
@@ -531,7 +497,8 @@ heatmaply(distance,
           main = 'Dissimilarity matrix for all states')
 ```
 
-## clustering tree
+## Clustering (2/3)
+
 ```{r fig.height=5, warning=FALSE, message=FALSE, fig.align='center'}
 res.hc <- eclust(data_to_cluster, k=3, "hclust") 
 fviz_dend(res.hc, 
@@ -543,7 +510,8 @@ fviz_dend(res.hc,
           ggtheme = theme_minimal()) 
 ```
 
-## table clusters
+## Clustering (3/3)
+
 ```{r warning=FALSE, message=FALSE}
 clusters <- data.frame(jurisdiction = rownames(data_to_cluster),
                        cluster = res.hc$cluster)
@@ -558,23 +526,35 @@ colnames(table) <- c("Cluster 1", "Cluster 2", "Cluster 3")
 kable_f(table)
 ```
 
-## cluster map
 
-```{r, fig.align='center'}
-#merge cluster data and state spatial data
+```{r, fig.align='center', fig.height=3}
+# merge cluster data and state spatial data
 colnames(clusters)[1] <- "NAME"
 us_states_clusters <- merge(us_states, clusters, by = "NAME")
 
 usa1 <- ggplot() +
   geom_sf(data = us_states_clusters, aes(fill = as.factor(cluster)), lwd = 0, color="white") +
-  scale_fill_manual(values = viridis(6)[2:5]) +
+  scale_fill_manual(values = viridis(6)[2:5], name = "Cluster") +
   theme(legend.position = "none") +
   theme_minimal() +
   ggtitle("Mapping clusters and regions") +
   theme(legend.position = "right") +
   geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-  scale_color_manual(values = heat.colors(6)[2:5])
+  scale_color_manual(values = heat.colors(6)[2:5], name = "Region") +
+  guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
 
 usa1
 ```
+
+## Conclusions
+
+- There are on average 10 times more property crimes than violent crimes per square km.
+- Northeastern region has the highest number of crimes. 
+- Midwestern states like New York, Pennsylvania, New Jersey and Massachusets are ranked higher with violent crimes than property crimes. 
+- There is a positive relationship between the number of prisoners per capita and the rates of violent crimes per capita. Over time, the relationship is ambiguous.
+- For both violent and property crimes the numbers drop after 2009. 
+- North and South Dakotas showed the highest percentage change in crimes between 2001 and 2016.
+- The state with the highest percentage change of incarceration rates is West Virginia. 
+- We couldn't define the relationship between investments into prisons and crime rates. 
+- Clustering into 3 clusters matched geographical locations of the states.
 

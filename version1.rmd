@@ -219,6 +219,7 @@ for(ii in seq_along(pl)) {
   
   pl[[ii]] <- .p
 }
+
 pl[[1]][["labels"]][["title"]] <- "Violent crimes (total)"
 pl[[2]][["labels"]][["title"]] <- "Murder and manslaughter"
 pl[[3]][["labels"]][["title"]] <- "Robbery"
@@ -227,6 +228,7 @@ pl[[5]][["labels"]][["title"]] <- "Property crimes (total)"
 pl[[6]][["labels"]][["title"]] <- "Burglary"
 pl[[7]][["labels"]][["title"]] <- "Larceny"
 pl[[8]][["labels"]][["title"]] <- "Vehicle theft"
+
 grid.arrange(grobs=pl, ncol=2)
 ```
 
@@ -251,27 +253,6 @@ prison %>% rename(Jurisdiction = jurisdiction,
   kable_f()
 ```
 
-## Number of prisoners in private prisons
-
-Similarly to prison data, private_prisons are also presented in a panel form and are transformed using long_panel. Additionally, we created a column showing a percentage of private prisoners among all incarcerated.
-
-```{r, warning=FALSE, message=FALSE}
-private_prisons <- read_delim("data/private_prisons.csv", ";", na="/")
-
-colnames(private_prisons)[2:9] <- paste0(colnames(private_prisons)[2:9],'1')
-private_prisons <- long_panel(private_prisons, begin = 2009, end = 2016, label_location = "beginning", id = "jurisdiction")
-names(private_prisons)[names(private_prisons) == "wave"] <- "year"
-names(private_prisons)[names(private_prisons) == "1"] <- "private_prisons"
-private_prisons$year <- as.factor(private_prisons$year)
-#creating new column
-private_prisons <- left_join(private_prisons, prison, by=c("state"="jurisdiction", "year")) %>%
-                        mutate(private_prisons_pct = round(private_prisons/prison*100,4)) %>% 
-                        select(year, state, private_prisons, private_prisons_pct)
-private_prisons$jurisdiction <- NULL
-
-kable_f(head(private_prisons))
-```
-
 ## Prison expenditures
 
 The next set of data concerns federal expenditures on corrections. As in the situation of the number of prisoners and private prisons the data was converted from a panel form with long_panel. 
@@ -287,9 +268,12 @@ prison_exp$year <- as.factor(prison_exp$year)
 prison_exp$jurisdiction <- NULL
 colnames(prison_exp)[2] <- "jurisdiction"
 
-kable_f(head(prison_exp))
+prison_exp %>% rename(Year = year,
+                      Jurisdiction = jurisdiction,
+                      `Prison expenditures` = prison_expenditure) %>%
+  head() %>% 
+  kable_f()
 ```
-
 
 ## State area and region
 
@@ -300,7 +284,11 @@ us_states_info <- data.frame(jurisdiction = us_states$NAME,
                              region = us_states$REGION,
                              area_km2 = as.numeric(round(us_states$AREA, 0)))
 
-kable_f(head(us_states_info))
+us_states_info %>% rename(Jurisdiction = jurisdiction,
+                          Region = region,
+                          `Area (km^2)` = area_km2) %>%
+  head() %>% 
+  kable_f()
 ```
 
 Because of the fact that there are two states missing in the us_states_info dataset, we manually added region and land area for Hawaii and Alaska [^area].
@@ -315,13 +303,11 @@ us_states_info <- rbind(us_states_info, additional_states)
 
 ## District of Columbia
 
-The district of Columbia is named as a jurisdiction and a separate row in the prison_exp and ucr datasets, however they do not appear in prison nor private_prisons datasets.
+The district of Columbia is named as a jurisdiction and a separate row in the prison_exp and ucr datasets, however they do not appear in prison dataset.
 
 ```{r warning=FALSE}
 cat("State that is in ucr dataset but does not appear in prison dataset:\n",
     setdiff(ucr$jurisdiction %>% unique(), prison$jurisdiction %>% unique()))
-cat("State that is in ucr dataset but does not appear in private_prisons dataset:\n",
-    setdiff(ucr$jurisdiction %>% unique(), private_prisons$state %>% unique()))
 ```
 
 The district of Columbia is also problematic for our calculations because of it's unique area, population, urbanisation and overall crime rates compared to other states. The comparison between the average values for the District of Columbia and values for other states are presented in the table below. It is visible right away that the values for area of District of Columbia is 0.1% of the median value for other states. When calculating the rate of crime per square km, regardless of type, the numbers turn out significantly larger. As for population, the value is still significantly smaller however measuring crime per capita is much more accurate. The plots below show crimes in the District of Columbia as compared to other states. The nominal values of both crimes are rather lower, toward the end of the list of states. Values for both types of crimes per area, as suspected, are drastically higher for Washington DC because its urbanized area consisting of the country capital. However even when taking into account the values divided by the population which seems to be a more rational approach, it shows that the District of Columbia has the highest crime rates per capita. The difference is even larger for violent crimes. This isn't a surprising discovery, since Washington DC has been fighting high crime rates, especially homicide since the crack epidemic in the 1980s. It has gained a nickname of the "murder capital" despite being the headquarters to many agencies. [^nyt] The aftermath can still be seen today and bearing in mind the size of the crime rate, we decide to exclude the district from all further analyses. This decision is caused by the fact the preserving Washington DC will prevent us from proper conclusions due to the aforementioned gap between areas.
@@ -345,7 +331,7 @@ dc.df.2 <- us_states_info %>% filter(jurisdiction=="District of Columbia") %>% s
 dc.df <- rbind(data.frame(row.names=c("Area"), round(state.df.2,0), dc.df.2),
                data.frame("states"=round(state.df.1,0), "dc"=round(dc.df.1,0)))
 dc.df$pct <- percent(dc.df$dc/dc.df$states)
-colnames(dc.df) = c("Median values for other states", "Values for District of Columbia", "DC/avg states in pct")
+colnames(dc.df) = c("Median values for other states", "Values for District of Columbia", "DC/avg states in %")
 kable_f(dc.df)
 ```
 
@@ -475,7 +461,7 @@ The proportion of violent and property crimes is similar across regions, where v
 
 On the right plot below can be seen the average regional values with the maintained relation between regions. The South region has the highest number of crimes regardless of its significant area. 
 
-```{r, fig.height = 3, fig.width = 6, warning=FALSE, message=FALSE, fig.align='center'}
+```{r, fig.height = 3, fig.width = 8, warning=FALSE, message=FALSE, fig.align='center'}
 plot.data <- ucr %>% 
                 left_join(us_states_info, by="jurisdiction") %>% 
                 group_by(region) %>% 
@@ -488,10 +474,11 @@ ggp1 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "fill") +
    theme_minimal() + 
    theme(legend.position = "bottom", axis.title.x = element_blank()) +
-   scale_fill_viridis_d(name="Type",
-                      labels = c("Violent", "Property"),
-                      begin = 0.3,
-                      end=0.8)
+   scale_fill_viridis_d(name="Type of crime",
+                        labels = c("Violent", "Property"),
+                        begin = 0.3,
+                        end=0.8) +
+  labs(title = "Proportion of crimes per state area",  y = "Share percentage")
 
 ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    geom_bar(stat="identity", width=.5, position = "dodge") +
@@ -500,13 +487,17 @@ ggp2 <- ggplot(data = plot.data, aes(x=region, y=value, fill=variable)) +
    scale_fill_viridis_d(name="Type",
                       labels = c("Violent", "Property"),
                       begin = 0.3,
-                      end=0.8)
+                      end=0.8) +
+    labs(title = "Number of crimes per state area",  y = "Nominal value")
 
-mylegend<-g_legend(ggp1)
+mylegend <- g_legend(ggp1)
 
 grid.arrange(arrangeGrob(ggp1 + theme(legend.position="none"),
                          ggp2 + theme(legend.position="none"),
-                         nrow=1), mylegend, nrow=2, heights=c(10, 1))
+                         nrow=1), 
+             mylegend, 
+             nrow=2, 
+             heights=c(10, 1))
 ```
 
 Below can be seen maps of US states divided by the severity of a crime, that is violent compared to property crimes. In case of property crimes there is a visible division aligned with the historical North and South  during the Civil War. In the South there are more property crimes than in Northeast. However when looking at the north and the south in a geographical sense (dividing country horizontally), there is a difference for both types of crimes, once again with higher rate in the south. What is more, when comparing maps we can see a difference in the Northeast region concerning New York, Pennsylvania, New Jersey and Massachusetts. For all of these states, we see that there are more violent than property crimes per population compared to other states. One more state in which the difference can also be seen is a southern state - Idaho.
@@ -549,14 +540,14 @@ us_states_west <- us_states %>%
 us_states_regions <- rbind(us_states_midwest, us_states_norteast, us_states_south, us_states_west) %>% st_sf()
 
 # create usa map for both crime types
-usa1 <- ggplot() +
-          geom_sf(data = us_states_ucr, aes(fill = property_crime_per_pop), lwd = 0, color = "white") +
-          scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+usa1 <- ggplot(data = us_states_ucr) +
+          geom_sf(aes(fill = property_crime_per_pop), lwd = 0, color = "white") +
+          scale_fill_viridis_c(option = "viridis", trans = "sqrt", name = "Property crimes\nper population") +
           theme(legend.position = "none") +
           theme_minimal()
 usa2 <- ggplot(data = us_states_ucr) +
-          geom_sf(data = us_states_ucr, aes(fill = violent_crime_per_pop), lwd = 0, color = "white") +
-          scale_fill_viridis_c(option = "viridis", trans = "sqrt") +
+          geom_sf(aes(fill = violent_crime_per_pop), lwd = 0, color = "white") +
+          scale_fill_viridis_c(option = "viridis", trans = "sqrt", name = "Violent crimes\nper population") +
           theme(legend.position = "none") +
           theme_minimal()
 
@@ -565,38 +556,40 @@ usa_all1 <- usa1 +
               ggtitle("Property crimes per population across states")+
               theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-              scale_color_manual(values = heat.colors(6)[2:5])
+              scale_color_manual(values = heat.colors(6)[2:5], name = "Region")
 
 usa_all2 <- usa2 + 
-              ggtitle("Violent crimes per population across states")+
-                            theme(legend.position = "right") +
+              ggtitle("Violent crimes per population across states") +
+              theme(legend.position = "right") +
               geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-              scale_color_manual(values = heat.colors(6)[2:5])
+              scale_color_manual(values = heat.colors(6)[2:5], name = "Region")
 
 # zoom and format zoomed map of DC
 usa_dc1 <- usa1 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
-            guides(fill=FALSE)+
+            guides(fill=FALSE) +
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
                   axis.ticks = element_blank(),
                   legend.position = "none")
 usa_dc2 <- usa2 + 
             coord_sf(xlim = c(-79, -75), ylim = c(38, 40)) +
-            guides(fill=FALSE)+
+            guides(fill=FALSE) +
             theme(axis.title = element_blank(), 
                   axis.text  = element_blank(),
                   axis.ticks = element_blank(),
-                  legend.position = "none")
+                  legend.position = "none") 
 
 # combine both plots and add rectangle around zoomed area
 ggp1 <- usa_all1 + 
           annotation_custom(ggplotGrob(usa_dc1), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black") +
+          guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
 
 ggp2 <- usa_all2 + 
           annotation_custom(ggplotGrob(usa_dc2), xmin= -80, ymax= 35)+
-          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black")
+          geom_rect(aes(xmin = -79, xmax= -75, ymin=38, ymax = 40), size=0.6, fill=NA, color="black") +
+          guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
 ```
 
 
@@ -968,13 +961,15 @@ us_states_clusters <- merge(us_states, clusters, by = "NAME")
 
 usa1 <- ggplot() +
   geom_sf(data = us_states_clusters, aes(fill = as.factor(cluster)), lwd = 0, color="white") +
-  scale_fill_manual(values = viridis(6)[2:5]) +
+  scale_fill_manual(values = viridis(6)[2:5], name = "Cluster") +
   theme(legend.position = "none") +
   theme_minimal() +
   ggtitle("Mapping clusters and regions") +
   theme(legend.position = "right") +
   geom_sf(data = us_states_regions, aes(color=REGION), alpha=0, size = 0.8) +
-  scale_color_manual(values = heat.colors(6)[2:5])
+  scale_color_manual(values = heat.colors(6)[2:5], name = "Region") +
+  guides(fill = guide_legend(order = 1), color = guide_legend(order = 2))
+  
 
 usa1
 ```
@@ -982,7 +977,9 @@ usa1
 Below can be seen a table regarding mapping jurisdiction and its cluster to different regions. 
 
 ```{r}
-clusters %>% arrange(cluster, region)
+clusters %>% arrange(cluster, region) %>% rename(Jurisdiction = NAME, 
+                                                 Cluster = cluster,
+                                                 Region = region)
 ```
 
 
