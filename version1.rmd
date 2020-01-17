@@ -830,8 +830,9 @@ scatterPlot <- ggplot(prison_exp_ext2,
   theme(legend.position = "bottom")
 my_legend_scatter <- g_legend(scatterPlot)
 scatterPlot <- scatterPlot + theme(legend.position = "none")
-scatterPlot <- scatterPlot + transition_time(as.integer(year)) 
-# anim_save("scatterPlot.gif", scatterPlot)
+scatterPlot <- scatterPlot + transition_time(as.integer(year)) +
+  labs(title = "Year: {frame_time}", range=c(2001L,2016L))
+anim_save("scatterPlot.gif", scatterPlot)
 
 # Marginal density plot of exp_per_prisoner (top panel)
 xdensity <- ggplot(prison_exp_ext2, 
