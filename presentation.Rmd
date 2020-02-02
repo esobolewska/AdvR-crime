@@ -1,7 +1,7 @@
 ---
-title: "Crimes and incarcerations"
-author: "Ewelina Osowska, Ewa Sobolewska"
-date: "16/01/2020"
+title: "The Federal Open Market Committee Statements - background and initial analysis"
+author: "Ewelina Osowska"
+date: "29/01/2020"
 output:
   ioslides_presentation:
     widescreen: true
@@ -30,86 +30,76 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(readr)
+library(readtext)
+library(readxl)
 library(dplyr)
-library(grid)
-library(gridExtra)
-library(ggplot2)
-library(plotly)
-library(panelr)
-library(knitr)
-library(spData)
-library(sf)
-library(tmap)
-library(kableExtra)
-library(formattable)
-library(factoextra)
-library(heatmaply)
-library(gganimate)
-library(ggrepel)
-library(gghighlight)
+library(tidyverse)
+library(tidytext)
+library(tm)
+library(textstem)
+library(wordcloud)
+library(slam)
+library(topicmodels)
+library(SentimentAnalysis)
+library(igraph)
+library(ggraph)
+library(widyr)
 library(viridis)
-library(reshape2)
+library(plotly)
+library(ggplot2)
+library(lubridate)
+library(wordcloud2)
+library(stringr)
+library(tidyr)
 
-kable_f = function(...) {
-  knitr::kable(..., format.args = list(decimal.mark = '.', big.mark = ",")) %>% 
-    kable_styling(bootstrap_options = c("hover", "condensed", "responsive"), full_width = F)
-}
+DATA_DIR <- "~/Desktop/FOMC-text-mining/Statements"
 
-# extract legend
-# https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
-g_legend<-function(a.gplot){
-  tmp <- ggplot_gtable(ggplot_build(a.gplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  legend <- tmp$grobs[[leg]]
-  return(legend)}
+fomc_2006 <- readtext(paste0(DATA_DIR, "/2006/*"))
+fomc_2007 <- readtext(paste0(DATA_DIR, "/2007/*"))
+fomc_2008 <- readtext(paste0(DATA_DIR, "/2008/*"))
+fomc_2009 <- readtext(paste0(DATA_DIR, "/2009/*"))
+fomc_2010 <- readtext(paste0(DATA_DIR, "/2010/*"))
+fomc_2011 <- readtext(paste0(DATA_DIR, "/2011/*"))
+fomc_2012 <- readtext(paste0(DATA_DIR, "/2012/*"))
+fomc_2013 <- readtext(paste0(DATA_DIR, "/2013/*"))
+fomc_2014 <- readtext(paste0(DATA_DIR, "/2014/*"))
+fomc_2015 <- readtext(paste0(DATA_DIR, "/2015/*"))
+fomc_2016 <- readtext(paste0(DATA_DIR, "/2016/*"))
+fomc_2017 <- readtext(paste0(DATA_DIR, "/2017/*"))
+fomc_2018 <- readtext(paste0(DATA_DIR, "/2018/*"))
+# Binding data
+statements <- rbind(fomc_2006, fomc_2007, fomc_2008, fomc_2009, fomc_2010, fomc_2011,
+                    fomc_2012, fomc_2013, fomc_2014, fomc_2015, fomc_2016, fomc_2017, fomc_2018)
+# Removing files from memory
+remove(fomc_2006, fomc_2007, fomc_2008, fomc_2009, fomc_2010, fomc_2011,
+       fomc_2012, fomc_2013, fomc_2014, fomc_2015, fomc_2016, fomc_2017, fomc_2018)
 
-ucr <- read_csv("data/ucr_by_state.csv")
-ucr$year <- as.factor(ucr$year)
+# adding an unique ID
+statements <- statements %>% mutate(ID = 1:n())
+# setting column names 
+colnames(statements) <- c("Date", "Text", "ID")
+# modification of doc_id column - changing it to date column
+statements$Date <- gsub(".txt", "", statements$Date)
+statements$Date <- as.Date(statements$Date, "%Y%m%d")
 
-ucr <- ucr[, -c(16:21)]
-# removing all missing rows
-ind <- apply(ucr, 1, function(x) all(is.na(x)))
-ucr <- ucr[ !ind, ]
+statements_all <- as.vector(statements$Text)
 
-ucr$jurisdiction[ucr$jurisdiction=="DC"] <- "District of Columbia"
-ucr <- ucr %>% filter(jurisdiction!="Puerto Rico")
 
-ucr$rape_legacy <- NULL
-ucr$rape_revised <- NULL
 
-prison <- read_csv("data/prison_custody_by_state.csv")
-
-colnames(prison)[3:18] <- paste0(colnames(prison)[3:18],'1')
-prison <- long_panel(prison, begin = 2001, end = 2016, label_location = "beginning", id = "jurisdiction")
-names(prison)[names(prison) == "wave"] <- "year"
-names(prison)[names(prison) == "1"] <- "prison"
-prison$year <- as.factor(prison$year)
-
-prison_exp <- read_delim("data/prison_expenditures.csv", ";")
-
-prison_exp <- long_panel(prison_exp, begin = 2009, end = 2016, prefix="_", label_location = "end", id = "jurisdiction")
-names(prison_exp)[names(prison_exp) == "wave"] <- "year"
-prison_exp$year <- as.factor(prison_exp$year)
-prison_exp$jurisdiction <- NULL
-colnames(prison_exp)[2] <- "jurisdiction"
-
-us_states_info <- data.frame(jurisdiction = us_states$NAME, 
-                             region = us_states$REGION,
-                             area_km2 = as.numeric(round(us_states$AREA, 0)))
-
-additional_states <- data.frame(jurisdiction = c("Hawaii", "Alaska"),
-           region = c("remote", "remote"),
-           area_km2 = c(16638, 1481346))
-
-us_states_info <- rbind(us_states_info, additional_states)
 ```
 
-## Aim of the project
+## Agenda
 
 <br>
 <br>
-Review of crime and incarceration trends in the United States and also examining the relationships in data regarding crimes commited, number of prisoners and prison expenditures across time and states.
+
+## What is FOMC?
+
+## How are statements organized?
+
+## Data retrieval and preparation
+
+## General facts about FOMC statements
 
 
 ## Data 

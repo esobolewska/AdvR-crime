@@ -686,14 +686,13 @@ In case of property crime rates, we can see that for all states the change is ne
 
 The last plot presents incarceration rates. The state which is visibly separate from the others is West Virginia with over 70% change between 2001 and 2016. It was difficult to connect it with any particular event, however it is worth noting that West Virginia has also one of the highest incarceration rate in the US.  
 
-```{r warning=FALSE, message=FALSE, fig.height=7}
+```{r warning=FALSE, message=FALSE, fig.height=10}
 # preparing data
 prison_data <- prison %>% filter(year==2001 | year==2016) %>% 
   select(jurisdiction, year, prison)
 
 data_prep <- left_join(ucr, us_states_info, by = "jurisdiction")
 data_prep1 <- left_join(data_prep, prison_data, by = c("jurisdiction", "year"))
-
 
 v1 <- data_prep1 %>% 
   filter(year==2001) %>% 
@@ -717,64 +716,43 @@ v2 <- data_prep1 %>%
 
 final_data <- left_join(v1, v2, by = "jurisdiction")
 
-# percentage change
-final_data_plot <- final_data %>% 
-  mutate(
-    pct_change_violent = (violent_crime_total_rate_2016-violent_crime_total_rate_2001)/(violent_crime_total_rate_2001)*100,
-    pct_change_property = (property_crime_total_rate_2016-property_crime_total_rate_2001)/(property_crime_total_rate_2001)*100,
-    pct_change_imprisonment = (imprisonment_rate_2016-imprisonment_rate_2001)/(imprisonment_rate_2001)*100) %>%
-  select(jurisdiction, pct_change_violent, pct_change_property, pct_change_imprisonment)
+violent <- final_data %>%
+  dplyr::select(jurisdiction, violent_crime_total_rate_2001, violent_crime_total_rate_2016) %>%
+  dplyr::arrange(desc(violent_crime_total_rate_2001))
+violent$jurisdiction <- factor(violent$jurisdiction, levels=as.character(violent$jurisdiction))
 
-ggp_violent <- ggplot(data = final_data_plot, 
-                      aes(x = reorder(jurisdiction, -pct_change_violent), 
-                          y = pct_change_violent, 
-                          fill = as.factor(pct_change_violent), 
-                          text = paste0("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change: ", round(pct_change_violent, 2), '%'))) +
-  geom_bar(stat='identity', position="dodge") +
-  scale_y_continuous(limits=c(-50, 220), breaks=seq(-50, 220, 50), labels=percent) +
-  coord_flip() +
-  labs(title = "Percent change in state violent crime rates, 2001-2016", 
-       x = "Jurisdiction", 
-       y = "Percentage change") +
-  scale_fill_viridis_d() +
-  theme_minimal() +
-  theme(legend.position = "none", axis.text=element_text(size=6)) 
+property <- final_data %>%
+  dplyr::select(jurisdiction, property_crime_total_rate_2001, property_crime_total_rate_2016) %>%
+  dplyr::arrange(desc(property_crime_total_rate_2001))
+property$jurisdiction <- factor(property$jurisdiction, levels=as.character(property$jurisdiction))
 
+imprisonment <- final_data %>%
+  dplyr::select(jurisdiction, imprisonment_rate_2001, imprisonment_rate_2016) %>%
+  dplyr::arrange(desc(imprisonment_rate_2001))
+imprisonment$jurisdiction <- factor(imprisonment$jurisdiction, levels=as.character(imprisonment$jurisdiction))
 
-ggp_property <- ggplot(data = final_data_plot,
-                       aes(x = reorder(jurisdiction, pct_change_property),
-                           y = pct_change_property,
-                           fill = as.factor(pct_change_property),
-                           text = paste0("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change: ", round(pct_change_property, 2), '%'))) +
-  geom_bar(stat='identity') +
-  scale_y_continuous(limits=c(-50, 10), breaks=seq(-50, 10, 10), labels=percent) +
-  coord_flip() +
-  labs(title = "Percent change in state property crime rates, 2001-2016",
-       x = "Jurisdiction",
-       y = "Percentage change") +
-  scale_fill_viridis_d() +
-  theme_minimal() +
-  theme(legend.position = "none", axis.text=element_text(size=6))
-
-ggp_imprisonment <- ggplot(data = final_data_plot,
-                       aes(x = reorder(jurisdiction, -pct_change_imprisonment),
-                           y = pct_change_imprisonment,
-                           fill = as.factor(pct_change_imprisonment),
-                           text = paste0("Jurisdiction: ", jurisdiction,
-                                       "<br>Percentage change: ", round(pct_change_imprisonment, 2), '%'))) +
-  geom_bar(stat='identity') +
-  coord_flip() +
-  labs(title = "Percent change in state imprisonment rates, 2001-2016",
-       x = "Jurisdiction",
-       y = "Percentage change") +
-  scale_fill_viridis_d() +
-  theme_minimal() +
-  scale_y_continuous(limits=c(-40, 80), breaks=seq(-40, 80, 10), labels=percent) +
-  theme(legend.position = "none", axis.text=element_text(size=6))
-  
+#plots
+violent_plot <- plot_ly(violent, color = I("gray80")) %>%
+  add_segments(x = ~violent_crime_total_rate_2001, 
+               xend = ~violent_crime_total_rate_2016, 
+               y = ~jurisdiction, 
+               yend = ~jurisdiction, 
+               showlegend = FALSE) %>%
+  add_markers(x = ~violent_crime_total_rate_2001, 
+              y = ~jurisdiction, 
+              color = I("#79D150")) %>%
+  add_markers(x = ~violent_crime_total_rate_2016, 
+              y = ~jurisdiction, 
+              color = I("#355F8D")) %>%
+  layout(title="Percent change in state violent crime rates, 2001 vs 2016",
+         margin = list(l = 65),
+         showlegend = FALSE,
+         xaxis = list(tickformat = "%"),
+         yaxis = list(size = 0.8),
+         autosize = F, height = 800)
 ```
+
+
 
 
 ### {.tabset .tabset-fade .tabset-pills}
@@ -782,19 +760,20 @@ ggp_imprisonment <- ggplot(data = final_data_plot,
 #### Violent crime rates
 
 ```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
-ggplotly(ggp_violent, tooltip = "text")
+ggplotly(violent_plot, tooltip = "text")
+#ggplotly(ggp_violent, tooltip = "text")
 ```
 
 #### Property crime rates
 
 ```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
-ggplotly(ggp_property, tooltip = "text") 
+#ggplotly(ggp_property, tooltip = "text") 
 ```
 
 #### Imprisonment rates
 
 ```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
-ggplotly(ggp_imprisonment, tooltip = "text") 
+#ggplotly(ggp_imprisonment, tooltip = "text") 
 ```
 
 
