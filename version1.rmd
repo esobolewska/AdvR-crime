@@ -720,19 +720,29 @@ violent <- final_data %>%
   dplyr::select(jurisdiction, violent_crime_total_rate_2001, violent_crime_total_rate_2016) %>%
   dplyr::arrange(desc(violent_crime_total_rate_2001))
 violent$jurisdiction <- factor(violent$jurisdiction, levels=as.character(violent$jurisdiction))
-
+violent$pct_change_violent <- (violent$violent_crime_total_rate_2016 - violent$violent_crime_total_rate_2001)/violent$violent_crime_total_rate_2001*100
+violent$violent_crime_total_rate_2001 <- round(violent$violent_crime_total_rate_2001, 4)
+violent$violent_crime_total_rate_2016 <- round(violent$violent_crime_total_rate_2016, 4)
+  
 property <- final_data %>%
   dplyr::select(jurisdiction, property_crime_total_rate_2001, property_crime_total_rate_2016) %>%
   dplyr::arrange(desc(property_crime_total_rate_2001))
 property$jurisdiction <- factor(property$jurisdiction, levels=as.character(property$jurisdiction))
+property$pct_change_property <- (property$property_crime_total_rate_2016 - property$property_crime_total_rate_2001)/property$property_crime_total_rate_2001*100
+property$property_crime_total_rate_2001 <- round(property$property_crime_total_rate_2001, 4)
+property$property_crime_total_rate_2016 <- round(property$property_crime_total_rate_2016, 4)
 
 imprisonment <- final_data %>%
   dplyr::select(jurisdiction, imprisonment_rate_2001, imprisonment_rate_2016) %>%
   dplyr::arrange(desc(imprisonment_rate_2001))
 imprisonment$jurisdiction <- factor(imprisonment$jurisdiction, levels=as.character(imprisonment$jurisdiction))
+imprisonment$pct_change_imprisonment <- (imprisonment$imprisonment_rate_2016 - imprisonment$imprisonment_rate_2001)/   imprisonment$imprisonment_rate_2001*100
+imprisonment$imprisonment_rate_2001 <- round(imprisonment$imprisonment_rate_2001, 4)
+imprisonment$imprisonment_rate_2016 <- round(imprisonment$imprisonment_rate_2016, 4)
 
 #plots
-violent_plot <- plot_ly(violent, color = I("gray80")) %>%
+violent_plot <- plot_ly(violent, color = I("gray80"),
+        text = ~paste('Pct change: ', round(pct_change_violent), '%')) %>%
   add_segments(x = ~violent_crime_total_rate_2001, 
                xend = ~violent_crime_total_rate_2016, 
                y = ~jurisdiction, 
@@ -747,9 +757,47 @@ violent_plot <- plot_ly(violent, color = I("gray80")) %>%
   layout(title="Percent change in state violent crime rates, 2001 vs 2016",
          margin = list(l = 65),
          showlegend = FALSE,
-         xaxis = list(tickformat = "%"),
          yaxis = list(size = 0.8),
-         autosize = F, height = 800)
+         autosize = F,
+         height = 1000)
+property_plot <- plot_ly(property, color = I("gray80"),
+        text = ~paste('Pct change: ', round(pct_change_property), '%')) %>%
+  add_segments(x = ~property_crime_total_rate_2001, 
+               xend = ~property_crime_total_rate_2016, 
+               y = ~jurisdiction, 
+               yend = ~jurisdiction, 
+               showlegend = FALSE) %>%
+  add_markers(x = ~property_crime_total_rate_2001, 
+              y = ~jurisdiction, 
+              color = I("#79D150")) %>%
+  add_markers(x = ~property_crime_total_rate_2016, 
+              y = ~jurisdiction, 
+              color = I("#355F8D")) %>%
+  layout(title="Percent change in state property crime rates, 2001 vs 2016",
+         margin = list(l = 65),
+         showlegend = FALSE,
+         yaxis = list(size = 0.8),
+         autosize = F,
+         height = 1000)
+imprisonment_plot <- plot_ly(imprisonment, color = I("gray80"),
+        text = ~paste('Pct change: ', round(pct_change_imprisonment), '%')) %>%
+  add_segments(x = ~imprisonment_rate_2001, 
+               xend = ~imprisonment_rate_2016, 
+               y = ~jurisdiction, 
+               yend = ~jurisdiction, 
+               showlegend = FALSE) %>%
+  add_markers(x = ~imprisonment_rate_2001, 
+              y = ~jurisdiction, 
+              color = I("#79D150")) %>%
+  add_markers(x = ~imprisonment_rate_2016, 
+              y = ~jurisdiction, 
+              color = I("#355F8D")) %>%
+  layout(title="Percent change in state imprisonment rates, 2001 vs 2016",
+         margin = list(l = 65),
+         showlegend = FALSE,
+         yaxis = list(size = 0.8),
+         autosize = F,
+         height = 1000)
 ```
 
 
@@ -759,21 +807,20 @@ violent_plot <- plot_ly(violent, color = I("gray80")) %>%
 #### Hide plots
 #### Violent crime rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
+```{r warning=FALSE, message=FALSE, fig.height=11, fig.width=6, fig.align='center'}
 ggplotly(violent_plot, tooltip = "text")
-#ggplotly(ggp_violent, tooltip = "text")
 ```
 
 #### Property crime rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
-#ggplotly(ggp_property, tooltip = "text") 
+```{r warning=FALSE, message=FALSE, fig.height=11, fig.width=6, fig.align='center'}
+ggplotly(property_plot, tooltip = "text")
 ```
 
 #### Imprisonment rates
 
-```{r warning=FALSE, message=FALSE, fig.height=7, fig.align='center'}
-#ggplotly(ggp_imprisonment, tooltip = "text") 
+```{r warning=FALSE, message=FALSE, fig.height=11, fig.width=6, fig.align='center'}
+ggplotly(imprisonment_plot, tooltip = "text")
 ```
 
 
@@ -811,7 +858,7 @@ my_legend_scatter <- g_legend(scatterPlot)
 scatterPlot <- scatterPlot + theme(legend.position = "none")
 scatterPlot <- scatterPlot + transition_time(as.integer(year)) +
   labs(title = "Year: {frame_time}", range=c(2001L,2016L))
-anim_save("scatterPlot.gif", scatterPlot)
+# anim_save("scatterPlot.gif", scatterPlot)
 
 # Marginal density plot of exp_per_prisoner (top panel)
 xdensity <- ggplot(prison_exp_ext2, 
